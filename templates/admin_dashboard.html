@@ -1,26 +1,6 @@
 {% extends "base.html" %}
 
 {% block head %}
-<style>
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 2rem;
-    }
-
-    @media (max-width: 768px) {
-        .dashboard-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    #map-preview {
-        height: 400px;
-        width: 100%;
-        border-radius: var(--radius-md);
-        margin-bottom: 1rem;
-    }
-</style>
 {% endblock %}
 
 {% block content %}

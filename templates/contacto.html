@@ -1,200 +1,58 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-<meta charset="UTF-8">
-<title>Contacto – E-Lixo Zero Lisboa</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% extends "base.html" %}
 
-<style>
-
-* {
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-    font-family: "Segoe UI", Roboto, Arial, sans-serif;
-    background: linear-gradient(135deg, #e8f0fa, #f5f8fc);
-    color: #333;
-}
-
-/* HEADER */
-
-header {
-    background: linear-gradient(135deg, #1565c0, #1e88e5);
-    color: white;
-    text-align: center;
-    padding: 40px 20px;
-}
-
-header h1 {
-    margin: 0;
-    font-size: 2.2rem;
-}
-
-header p {
-    margin-top: 10px;
-    opacity: 0.95;
-}
-
-/* MAIN CARD */
-
-main {
-    max-width: 720px;
-    margin: -30px auto 40px;
-    padding: 30px;
-    background: white;
-    border-radius: 14px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-}
-
-/* FORM */
-
-form {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-}
-
-label {
-    font-weight: 600;
-    margin-bottom: 5px;
-    display: block;
-}
-
-/* INPUTS */
-
-input,
-textarea {
-    width: 100%;
-    padding: 12px;
-    font-size: 1rem;
-    border-radius: 8px;
-    border: 1px solid #d0d7e2;
-    transition: all 0.2s ease;
-    background: #fafcff;
-}
-
-input:focus,
-textarea:focus {
-    outline: none;
-    border-color: #1e88e5;
-    box-shadow: 0 0 0 3px rgba(30,136,229,0.15);
-    background: white;
-}
-
-textarea {
-    resize: vertical;
-    min-height: 130px;
-}
-
-/* BUTTON */
-
-button {
-    margin-top: 10px;
-    padding: 14px;
-    font-size: 1.05rem;
-    font-weight: 600;
-    border-radius: 10px;
-    border: none;
-    cursor: pointer;
-    background: linear-gradient(135deg, #1976d2, #2196f3);
-    color: white;
-    transition: all 0.2s ease;
-}
-
-button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.15);
-}
-
-/* FOOTER */
-
-footer {
-    text-align: center;
-    padding: 20px;
-    font-size: 0.9rem;
-    color: #555;
-}
-
-/* RESPONSIVE */
-
-@media (max-width: 600px) {
-    main {
-        margin: -20px 15px 30px;
-        padding: 20px;
-    }
-
-    header h1 {
-        font-size: 1.8rem;
-    }
-}
-
-</style>
-</head>
-
-<body>
-
-<header>
+{% block content %}
+<header class="page-header">
     <h1>Contacto</h1>
-    <p>Dúvidas ou sugestões? Fale connosco</p>
+    <p>Dúvidas ou sugestões? Fale connosco e ajude Lisboa a ser mais sustentável.</p>
 </header>
 
-<main>
+<main class="dashboard-container" style="max-width: 720px;">
+    <div class="card">
+        <form id="contactForm">
+            <div class="form-group">
+                <label for="nome">Nome Completo</label>
+                <input type="text" id="nome" required placeholder="Seu nome">
+            </div>
 
-<form id="contactForm">
+            <div class="form-group">
+                <label for="email">E-mail de Contacto</label>
+                <input type="email" id="email" required placeholder="seu@email.com">
+            </div>
 
-<div>
-<label for="nome">Nome</label>
-<input type="text" id="nome" required>
-</div>
+            <div class="form-group">
+                <label for="assunto">Assunto</label>
+                <input type="text" id="assunto" required placeholder="Sobre o que deseja falar?">
+            </div>
 
-<div>
-<label for="email">E-mail</label>
-<input type="email" id="email" required>
-</div>
+            <div class="form-group">
+                <label for="mensagem">Mensagem</label>
+                <textarea id="mensagem" required rows="5" placeholder="Escreva aqui sua mensagem..."></textarea>
+            </div>
 
-<div>
-<label for="assunto">Assunto</label>
-<input type="text" id="assunto" required>
-</div>
-
-<div>
-<label for="mensagem">Mensagem</label>
-<textarea id="mensagem" required></textarea>
-</div>
-
-<button type="submit">Enviar mensagem</button>
-
-</form>
-
+            <button type="submit" class="full-width-btn">Enviar Mensagem</button>
+        </form>
+    </div>
 </main>
+{% endblock %}
 
-<footer>
-Projeto Interdisciplinar – GPSI | E-Lixo Zero Lisboa
-</footer>
-
+{% block scripts %}
 <script>
-document.getElementById("contactForm").addEventListener("submit", function (e) {
-    e.preventDefault();
+    document.getElementById("contactForm").addEventListener("submit", function (e) {
+        e.preventDefault();
 
-    const nome = document.getElementById("nome").value;
-    const email = document.getElementById("email").value;
-    const assunto = document.getElementById("assunto").value;
-    const mensagem = document.getElementById("mensagem").value;
+        const nome = document.getElementById("nome").value;
+        const email = document.getElementById("email").value;
+        const assunto = document.getElementById("assunto").value;
+        const mensagem = document.getElementById("mensagem").value;
 
-    const mailtoLink = `mailto:elixozero.lisboa@gmail.com
-?subject=${encodeURIComponent(assunto)}
-&body=${encodeURIComponent(
-`Nome: ${nome}
+        const mailtoLink = `mailto:elixozero.lisboa@gmail.com?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(
+            `Nome: ${nome}
 Email: ${email}
 
 Mensagem:
 ${mensagem}`)}`;
 
-    window.location.href = mailtoLink;
-});
+        window.location.href = mailtoLink;
+    });
 </script>
-
-</body>
-</html>
+{% endblock %}

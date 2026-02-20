@@ -1,211 +1,65 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>E-Lixo Zero Lisboa</title>
+{% extends "base.html" %}
 
-<style>
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  font-family: "Segoe UI", Roboto, Arial, sans-serif;
-  background: linear-gradient(135deg,#e8f0fa,#f5f8fc);
-  color: #333;
-  line-height: 1.7;
-}
-
-/* ===== NAVBAR ===== */
-nav {
-  position: fixed;
-  top: 0;
-  width: 100%;
-  background: linear-gradient(135deg,#1565c0,#1e88e5);
-  padding: 14px;
-  display: flex;
-  justify-content: center;
-  gap: 30px;
-  z-index: 1000;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
-}
-
-nav a {
-  color: white;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-nav a:hover { opacity: 0.8; }
-
-/* ===== HEADER ===== */
-header {
-  margin-top: 60px;
-  background: linear-gradient(135deg,#1565c0,#1e88e5);
-  color: white;
-  text-align: center;
-  padding: 45px 20px;
-}
-
-header h1 { margin: 0; font-size: 2.3rem; }
-
-/* ===== MAIN ===== */
-main {
-  max-width: 1000px;
-  margin: 30px auto;
-  padding: 0 20px;
-}
-
-section {
-  background: white;
-  padding: 28px;
-  margin-bottom: 25px;
-  border-radius: 14px;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.06);
-}
-
-h2 {
-  color: #1565c0;
-  border-left: 6px solid #1e88e5;
-  padding-left: 10px;
-  margin-top: 0;
-}
-
-h3 { color: #1e88e5; }
-
-/* ICONS */
-.icons {
-  display: flex;
-  gap: 25px;
-  flex-wrap: wrap;
-  margin-top: 20px;
-}
-
-.icon-box {
-  text-align: center;
-  flex: 1 1 140px;
-  padding: 15px;
-  border-radius: 12px;
-  background: #f5f9ff;
-  transition: 0.25s;
-}
-
-.icon-box:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-}
-
-.icon-box img {
-  width: 70px;
-  margin-bottom: 8px;
-}
-
-/* LINKS */
-a {
-  color: #1976d2;
-  text-decoration: none;
-}
-
-a:hover { text-decoration: underline; }
-
-/* IFRAME */
-.container {
-  max-width: 1000px;
-  margin: 30px auto;
-  padding: 0 20px;
-}
-
-.container iframe {
-  width: 100%;
-  height: 600px;
-  border: none;
-  border-radius: 14px;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.06);
-}
-
-/* FOOTER */
-footer {
-  text-align: center;
-  padding: 20px;
-  color: #555;
-  font-size: 0.9rem;
-}
-</style>
-</head>
-
-<body>
-
-<!-- NAVBAR -->
-<nav>
-  <a href="http://127.0.0.1:5000/">Mapa</a>
-  <a href="pesquisa.html">Pesquisa</a>
-  <a href="contacto.html">Contacto</a>
-  <a href="login.html">Login</a>
-</nav>
-
-<!-- HEADER -->
-<header>
+{% block content %}
+<header class="page-header">
   <h1>E-Lixo Zero Lisboa</h1>
-  <p>O problema do lixo eletrónico</p>
+  <p>O seu guia para o descarte responsável de resíduos eletrónicos</p>
 </header>
 
-<!-- CONTEÚDO PRINCIPAL -->
-<main>
+<main class="dashboard-container">
+  <section class="content-section">
+    <h2>O que é Lixo Eletrónico</h2>
+    <p>O lixo eletrónico (REEE) inclui aparelhos elétricos e eletrónicos que já não são utilizados, como telemóveis,
+      computadores, e eletrodomésticos.</p>
 
-<section>
-<h2>O que é Lixo Eletrónico</h2>
-<p>O lixo eletrónico (REEE) inclui aparelhos elétricos e eletrónicos que já não são utilizados.</p>
-<p>Exemplos comuns: telemóveis, computadores, eletrodomésticos, pilhas e baterias.</p>
+    <div class="icon-grid">
+      <div class="icon-card">
+        <img src="https://cdn-icons-png.flaticon.com/512/3659/3659899.png" alt="Telemóveis">
+        <p>Telemóveis</p>
+      </div>
+      <div class="icon-card">
+        <img src="https://cdn-icons-png.flaticon.com/512/1792/1792931.png" alt="Computadores">
+        <p>Computadores</p>
+      </div>
+      <div class="icon-card">
+        <img src="https://cdn-icons-png.flaticon.com/512/2942/2942841.png" alt="Pilhas">
+        <p>Pilhas</p>
+      </div>
+    </div>
+  </section>
 
-<div class="icons">
-  <div class="icon-box">
-    <img src="https://cdn-icons-png.flaticon.com/512/3659/3659899.png">
-    <p>Telemóveis</p>
-  </div>
-  <div class="icon-box">
-    <img src="https://cdn-icons-png.flaticon.com/512/1792/1792931.png">
-    <p>Computadores</p>
-  </div>
-  <div class="icon-box">
-    <img src="https://cdn-icons-png.flaticon.com/512/2942/2942841.png">
-    <p>Pilhas</p>
-  </div>
-</div>
-</section>
+  <section class="content-section">
+    <h2>Por que isso importa</h2>
+    <p>O descarte incorreto causa impactos ambientais graves e riscos reais à saúde pública através da contaminação de
+      solos e águas.</p>
+    <div class="dashboard-grid">
+      <div class="card">
+        <h3>Impactos Negativos</h3>
+        <ul>
+          <li>Contaminação do solo e lençóis freáticos</li>
+          <li>Poluição do ar por queima inadequada</li>
+          <li>Exposição a metais pesados perigosos</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Benefícios da Reciclagem</h3>
+        <ul>
+          <li>Redução drástica da poluição ambiental</li>
+          <li>Recuperação de materiais valiosos</li>
+          <li>Fomento à economia circular</li>
+        </ul>
+      </div>
+    </div>
+  </section>
 
-<section>
-<h2>Por que isso importa</h2>
-<p>O descarte incorreto causa impactos ambientais e riscos à saúde.</p>
-<h3>Impactos</h3>
-<ul>
-<li>Contaminação do solo e água</li>
-<li>Poluição do ar</li>
-<li>Riscos à saúde pública</li>
-</ul>
-<h3>Benefícios da reciclagem</h3>
-<ul>
-<li>Redução da poluição</li>
-<li>Recuperação de materiais</li>
-<li>Economia circular</li>
-</ul>
-</section>
-
-<section>
-<h2>Dados & Estatísticas</h2>
-<p>Portugal ainda precisa melhorar a recolha de resíduos eletrónicos.</p>
-<ul>
-<li><a href="https://ec.europa.eu/eurostat/" target="_blank">Eurostat</a></li>
-<li><a href="https://apambiente.pt/" target="_blank">APA</a></li>
-<li><a href="https://electrao.pt/" target="_blank">Electrão</a></li>
-</ul>
-</section>
-
+  <section class="content-section">
+    <h2>Dados & Estatísticas</h2>
+    <p>Portugal tem metas ambiciosas para a recolha de equipamentos eletrónicos. Saiba mais através das entidades
+      oficiais:</p>
+    <ul class="nav-links" style="display: block; margin-top: 1rem;">
+      <li><a href="https://apambiente.pt/" target="_blank">Agência Portuguesa do Ambiente (APA)</a></li>
+      <li><a href="https://electrao.pt/" target="_blank">Electrão - Gestão de Resíduos</a></li>
+    </ul>
+  </section>
 </main>
-
-<!-- FOOTER -->
-<footer>
-Projeto Interdisciplinar – GPSI | 2025/2026
-</footer>
-
-</body>
-</html>
+{% endblock %}
