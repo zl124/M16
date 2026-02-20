@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* Ajustes específicos para o mapa ocupar a tela toda */
+    body,
+    html {
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .main-content {
+        height: 100%;
+    }
+
+    #map-container {
+        position: relative;
+        height: 100%;
+        width: 100%;
+    }
+
+    #map {
+        height: 100%;
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="map-container">
+    <div id="map"></div>
+
+    <!-- Legenda ou Filtros flutuantes (Opcional) -->
+    <div class="map-overlay"
+        style="position: absolute; top: 20px; right: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; max-width: 250px;">
+        <h3 style="margin-bottom: 10px; color: var(--primary-color);">Legenda</h3>
+        <p><i class="fa-solid fa-location-dot" style="color: #2e7d32;"></i> Pontos de Recolha</p>
+        <p><small>Clique nos clusters para expandir.</small></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Inicializa o mapa
+    const map = L.map('map').setView([38.7223, -9.1393], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // PONTOS do Flask
+    const pontos = {{ pontos | tojson | safe }};
+
+    // Grupo de clusters
+    const markers = L.markerClusterGroup();
+
+    // Adiciona pontos do backend
+    pontos.forEach(ponto => {
+        // Fallback de imagem
+        const img = ponto.imagem ?
+            (ponto.imagem.startsWith('http') ? ponto.imagem : "{{ url_for('static', filename='') }}" + ponto.imagem.replace('static/', ''))
+            : "https://images.unsplash.com/photo-1581090700227-1e37b190418e"; // Imagem genérica bonita
+
+        const popupHTML = `
+            <div class="popup-card">
+                <img src="${img}" alt="Imagem do local">
+                <h3>${ponto.nome}</h3>
+                <p><i class="fa-solid fa-map-pin"></i> ${ponto.morada}</p>
+                <p><i class="fa-regular fa-clock"></i> ${ponto.horario || 'N/D'}</p>
+                <p><i class="fa-solid fa-recycle"></i> ${ponto.tipo_recolha || 'N/D'}</p>
+                ${ponto.link ? `<a href="${ponto.link}" target="_blank" class="btn-outline" style="display:inline-block; margin-top:5px; padding: 5px 10px; font-size: 0.8rem;">Ver Mais</a>` : ''}
+            </div>
+        `;
+        const marker = L.marker([ponto.latitude, ponto.longitude]);
+        marker.bindPopup(popupHTML);
+        markers.addLayer(marker);
+    });
+
+    map.addLayer(markers);
+</script>
+{% endblock %}

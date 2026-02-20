@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pesquisa de Pontos de Recolha - E-Lixo Zero Lisboa</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  background: linear-gradient(135deg,#e8f0fa,#f5f8fc);
+  color: #333;
+  line-height: 1.7;
+}
+
+/* HEADER */
+header {
+  background: linear-gradient(135deg,#1565c0,#1e88e5);
+  color: white;
+  padding: 40px 20px;
+  text-align: center;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+}
+
+header h1 { margin: 0; font-size: 2.2rem; }
+header p { font-size: 1rem; margin-top: 8px; }
+
+/* MAIN */
+main {
+  max-width: 1000px;
+  margin: 30px auto;
+  padding: 20px;
+}
+
+/* FILTROS */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.filters input,
+.filters select {
+  flex: 1 1 200px;
+  padding: 12px 15px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  transition: 0.25s;
+}
+
+.filters input:focus,
+.filters select:focus {
+  border-color: #1e88e5;
+  outline: none;
+  box-shadow: 0 4px 10px rgba(30,136,229,0.2);
+}
+
+/* PONTOS DE RECOLHA */
+.point {
+  background: white;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 14px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+}
+
+.point h3 {
+  margin-top: 0;
+  color: #1565c0;
+  margin-bottom: 8px;
+}
+
+.point p {
+  margin: 4px 0;
+}
+
+/* MENSAGEM DE RESULTADO VAZIO */
+#results p {
+  text-align: center;
+  color: #555;
+  font-style: italic;
+}
+
+/* FOOTER */
+footer {
+  text-align: center;
+  padding: 20px;
+  color: #555;
+  font-size: 0.9rem;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Pesquisa de Pontos de Recolha</h1>
+  <p>Encontre o ponto de recolha mais adequado para o seu lixo eletrónico</p>
+</header>
+
+<main>
+  <div class="filters">
+    <input type="text" id="bairro" placeholder="Pesquisar por bairro">
+    <input type="text" id="freguesia" placeholder="Pesquisar por freguesia">
+
+    <select id="residuo">
+      <option value="">Tipo de resíduo</option>
+      <option value="Pequenos Eletrodomésticos">Pequenos Eletrodomésticos</option>
+      <option value="Grandes Eletrodomésticos">Grandes Eletrodomésticos</option>
+      <option value="Equipamentos Informáticos">Equipamentos Informáticos</option>
+      <option value="Pilhas e Baterias">Pilhas e Baterias</option>
+    </select>
+  </div>
+
+  <div id="results"></div>
+</main>
+
+<footer>
+  Projeto Interdisciplinar – GPSI | E-Lixo Zero Lisboa
+</footer>
+
+<script>
+const pontos = [
+  { nome: "Ecocentro da Valorsul", bairro: "Olivais", freguesia: "Parque das Nações", residuo: "Grandes Eletrodomésticos", morada: "Rua da Reciclagem, Lisboa" },
+  { nome: "Ponto Electrão – Continente", bairro: "Benfica", freguesia: "Benfica", residuo: "Pequenos Eletrodomésticos", morada: "Av. do Colégio Militar, Lisboa" },
+  { nome: "Entrajuda", bairro: "Campolide", freguesia: "Campolide", residuo: "Equipamentos Informáticos", morada: "Rua de Campolide, Lisboa" },
+  { nome: "Ponto de Recolha de Pilhas", bairro: "Alcântara", freguesia: "Alcântara", residuo: "Pilhas e Baterias", morada: "Rua de Alcântara, Lisboa" }
+];
+
+const bairroInput = document.getElementById("bairro");
+const freguesiaInput = document.getElementById("freguesia");
+const residuoSelect = document.getElementById("residuo");
+const resultsDiv = document.getElementById("results");
+
+function mostrarResultados() {
+  const bairro = bairroInput.value.toLowerCase();
+  const freguesia = freguesiaInput.value.toLowerCase();
+  const residuo = residuoSelect.value;
+
+  resultsDiv.innerHTML = "";
+
+  const filtrados = pontos.filter(p =>
+    (bairro === "" || p.bairro.toLowerCase().includes(bairro)) &&
+    (freguesia === "" || p.freguesia.toLowerCase().includes(freguesia)) &&
+    (residuo === "" || p.residuo === residuo)
+  );
+
+  if (filtrados.length === 0) {
+    resultsDiv.innerHTML = "<p>Nenhum ponto encontrado.</p>";
+    return;
+  }
+
+  filtrados.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "point";
+    div.innerHTML = `
+      <h3>${p.nome}</h3>
+      <p><strong>Bairro:</strong> ${p.bairro}</p>
+      <p><strong>Freguesia:</strong> ${p.freguesia}</p>
+      <p><strong>Tipo de resíduo:</strong> ${p.residuo}</p>
+      <p><strong>Morada:</strong> ${p.morada}</p>
+    `;
+    resultsDiv.appendChild(div);
+  });
+}
+
+bairroInput.addEventListener("input", mostrarResultados);
+freguesiaInput.addEventListener("input", mostrarResultados);
+residuoSelect.addEventListener("change", mostrarResultados);
+
+mostrarResultados();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    #map-preview {
+        height: 300px;
+        width: 100%;
+        border-radius: var(--radius-md);
+        margin-bottom: 1rem;
+    }
+
+    .client-container {
+        max-width: 800px;
+        margin: 2rem auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="client-container dashboard-container">
+    <div class="dashboard-header">
+        <h2><i class="fa-solid fa-user"></i> Minha Área</h2>
+        <p>Olá, {{ current_user.name }}!</p>
+    </div>
+
+    <div class="card">
+        <h3><i class="fa-solid fa-hand-holding-heart"></i> Sugerir Ponto de Recolha</h3>
+        <p style="margin-bottom: 15px; color: var(--text-light);">
+            Conhece um local de recolha que não está no mapa? Adicione abaixo para ajudar a comunidade!
+        </p>
+
+        <div id="map-preview"></div>
+
+        <form action="{{ url_for('add_ponto') }}" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>Nome do Local</label>
+                <input type="text" name="nome" required>
+            </div>
+
+            <div class="form-group">
+                <label>Morada</label>
+                <textarea name="morada" rows="2" required></textarea>
+            </div>
+
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                    <label>Horário</label>
+                    <input type="text" name="horario">
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Recolha</label>
+                    <input type="text" name="tipo_recolha">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Link (Opcional)</label>
+                <input type="text" name="link">
+            </div>
+
+            <div class="form-group">
+                <label>Foto do Local (Opcional)</label>
+                <input type="file" name="imagem" accept="image/*">
+            </div>
+
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label>Latitude</label>
+                    <input type="number" step="any" id="latitude" name="latitude" readonly required>
+                </div>
+                <div class="form-group">
+                    <label>Longitude</label>
+                    <input type="number" step="any" id="longitude" name="longitude" readonly required>
+                </div>
+            </div>
+
+            <button type="submit" class="full-width-btn">Enviar Sugestão</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Inicializa o mapa de inclusão
+    const map = L.map('map-preview').setView([38.7223, -9.1393], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let marcadorUsuario = null;
+
+    var redIcon = new L.Icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
+    map.on('click', function (e) {
+        const { lat, lng } = e.latlng;
+        if (marcadorUsuario) map.removeLayer(marcadorUsuario);
+
+        marcadorUsuario = L.marker([lat, lng], { draggable: true, icon: redIcon }).addTo(map);
+
+        document.getElementById('latitude').value = lat.toFixed(6);
+        document.getElementById('longitude').value = lng.toFixed(6);
+
+        marcadorUsuario.on('move', e => {
+            document.getElementById('latitude').value = e.latlng.lat.toFixed(6);
+            document.getElementById('longitude').value = e.latlng.lng.toFixed(6);
+        });
+    });
+</script>
+{% endblock %}
