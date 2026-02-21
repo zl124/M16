@@ -26,14 +26,17 @@
                 <i class="fa-solid fa-recycle"></i> E-Lixo Zero
             </a>
             <div class="nav-links">
-                <a href="{{ url_for('index') }}">Mapa</a>
+                <a href="{{ url_for('main_info') }}"><i class="fa-solid fa-house"></i> Início</a>
+                <a href="{{ url_for('index') }}"><i class="fa-solid fa-map-location-dot"></i> Mapa</a>
+                <a href="{{ url_for('pesquisa') }}"><i class="fa-solid fa-magnifying-glass"></i> Pesquisa</a>
+                <a href="{{ url_for('contacto') }}"><i class="fa-solid fa-envelope"></i> Contacto</a>
                 {% if current_user.is_authenticated %}
                 {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('admin_dashboard') }}">Dashboard Admin</a>
+                <a href="{{ url_for('admin_dashboard') }}"><i class="fa-solid fa-user-shield"></i> Admin</a>
                 {% else %}
-                <a href="{{ url_for('client_dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('client_dashboard') }}"><i class="fa-solid fa-user"></i> Painel</a>
                 {% endif %}
-                <a href="{{ url_for('logout') }}" class="btn-outline">Logout</a>
+                <a href="{{ url_for('logout') }}" class="btn-outline">Sair</a>
                 {% else %}
                 <a href="{{ url_for('login') }}">Login</a>
                 <a href="{{ url_for('register') }}" class="btn-primary">Registar</a>
