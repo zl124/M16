@@ -139,9 +139,21 @@ def load_user(user_id):
 
 @app.route('/')
 def index():
-    # Rota pública continua sendo o mapa
     pontos = db.get_pontos()
     return render_template('mapa.html', pontos=pontos)
+
+@app.route('/info')
+def main_info():
+    return render_template('main.html')
+
+@app.route('/pesquisa')
+def pesquisa():
+    pontos = db.get_pontos()
+    return render_template('pesquisa.html', pontos=pontos)
+
+@app.route('/contacto')
+def contacto():
+    return render_template('contacto.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
