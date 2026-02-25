@@ -45,10 +45,9 @@ def setup_database():
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        # Transformer from Lisbon Hayford-Gauss (EPSG:20790 or similar local) to WGS84 (EPSG:4326)
-        # Note: PRSL_X/Y in Lisbon often uses EPSG:5038 or EPSG:20790. 
-        # Based on typical Lisbon Open Data coords, EPSG:20790 (Lisbon Hayford-Gauss) is common.
-        transformer = Transformer.from_crs("epsg:20790", "epsg:4326")
+        # Transformer from Lisbon Hayford-Gauss (EPSG:27493) to WGS84 (EPSG:4326)
+        # EPSG:27493 is the more accurate specific local system for these Lisbon coordinates.
+        transformer = Transformer.from_crs("epsg:27493", "epsg:4326")
 
         count = 0
         for item in data:
