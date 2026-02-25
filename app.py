@@ -6,21 +6,21 @@ import os
 import sqlite3
 
 app = Flask(__name__)
-app.secret_key = 'sua_chave_secreta_aqui'  # Troque por uma chave segura em produção
+app.secret_key = ''  
 
-# Configuração do Flask-Login
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 class Database:
     def __init__(self):
-        # Database path relative to the app file
+        
         self.db_path = os.path.join(os.path.dirname(__file__), "geo_db.sqlite3")
 
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row  
-        self.cursor = self.conn.cursor()
+        self.cursor = self.conn.cursor()        
 
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS pontos_recolha (
@@ -217,8 +217,8 @@ def client_dashboard():
 @app.route('/add_ponto', methods=['POST'])
 @login_required
 def add_ponto():
-    # Permitir que admin e clientes adicionem pontos? 
-    # Vou permitir ambos, mas idealmente admin modera.
+   
+    # Vou permitir ambos, mas idealmente admin modera arromar para so admin colocar pontos.
     
     imagem_file = request.files.get('imagem')
     imagem_filename = None
@@ -259,4 +259,3 @@ def delete_ponto(ponto_id):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
-X
