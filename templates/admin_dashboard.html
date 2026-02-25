@@ -69,6 +69,10 @@
         <!-- Coluna da Direita: Gerir Pontos -->
         <div class="card">
             <h3><i class="fa-solid fa-list-check"></i> Gerir Pontos Existentes</h3>
+            <div class="search-box" style="margin-bottom: 20px;">
+                <input type="text" id="adminSearch" placeholder="Pesquisar por nome ou morada..."
+                    style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: var(--radius-md);">
+            </div>
             <p style="margin-bottom: 15px; color: var(--text-light);">Lista de todos os pontos cadastrados.</p>
 
             <div class="table-responsive">
@@ -89,11 +93,17 @@
                             </td>
                             <td>{{ ponto.tipo_recolha }}</td>
                             <td>
-                                <a href="{{ url_for('delete_ponto', ponto_id=ponto.id) }}" class="btn-outline"
-                                    style="color: #dc2626; border-color: #dc2626; padding: 5px 10px; font-size: 0.8rem;"
-                                    onclick="return confirm('Tem certeza que deseja remover este ponto?');">
-                                    <i class="fa-solid fa-trash"></i>
-                                </a>
+                                <div style="display: flex; gap: 5px;">
+                                    <a href="{{ url_for('edit_ponto', ponto_id=ponto.id) }}" class="btn-outline"
+                                        style="padding: 5px 10px; font-size: 0.8rem;">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </a>
+                                    <a href="{{ url_for('delete_ponto', ponto_id=ponto.id) }}" class="btn-outline"
+                                        style="color: #dc2626; border-color: #dc2626; padding: 5px 10px; font-size: 0.8rem;"
+                                        onclick="return confirm('Tem certeza que deseja remover este ponto?');">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% else %}
@@ -143,6 +153,17 @@
         marcadorUsuario.on('move', e => {
             document.getElementById('latitude').value = e.latlng.lat.toFixed(6);
             document.getElementById('longitude').value = e.latlng.lng.toFixed(6);
+        });
+    });
+
+    // JS para Pesquisa em Tempo Real
+    document.getElementById('adminSearch').addEventListener('keyup', function () {
+        const term = this.value.toLowerCase();
+        const rows = document.querySelectorAll('tbody tr');
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(term) ? '' : 'none';
         });
     });
 </script>

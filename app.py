@@ -80,6 +80,18 @@ class Database:
                         self.add_ponto(nome, morada, "", tipo, "", lat, lon)
                 
                 print("Auto-import complete.")
+            
+        # Criar admin pré-definido se não existir
+        self.cursor.execute("SELECT * FROM users WHERE role = 'admin'")
+        if not self.cursor.fetchone():
+            from werkzeug.security import generate_password_hash
+            hashed_pw = generate_password_hash('admin123')
+            self.cursor.execute("""
+                INSERT INTO users (name, email, password, role)
+                VALUES (?, ?, ?, ?)
+            """, ('Administrador', 'admin@elixo.pt', hashed_pw, 'admin'))
+            self.conn.commit()
+            print("Admin pré-definido criado: admin@elixo.pt / admin123")
 
     def add_ponto(self, nome, morada, horario, tipo_recolha, link,
                   latitude, longitude, imagem=None, created_by=None):
@@ -113,6 +125,21 @@ class Database:
             "DELETE FROM pontos_recolha WHERE id = ?",
             (ponto_id,)
         )
+        self.conn.commit()
+
+    def update_ponto(self, ponto_id, nome, morada, horario, tipo_recolha, link, latitude, longitude, imagem=None):
+        if imagem:
+            self.cursor.execute("""
+                UPDATE pontos_recolha
+                SET nome=?, morada=?, horario=?, tipo_recolha=?, link=?, latitude=?, longitude=?, imagem=?
+                WHERE id=?
+            """, (nome, morada, horario, tipo_recolha, link, latitude, longitude, imagem, ponto_id))
+        else:
+            self.cursor.execute("""
+                UPDATE pontos_recolha
+                SET nome=?, morada=?, horario=?, tipo_recolha=?, link=?, latitude=?, longitude=?
+                WHERE id=?
+            """, (nome, morada, horario, tipo_recolha, link, latitude, longitude, ponto_id))
         self.conn.commit()
 
 
@@ -247,6 +274,9 @@ def client_dashboard():
 @app.route('/add_ponto', methods=['POST'])
 @login_required
 def add_ponto():
+    if current_user.role != 'admin':
+        flash("Apenas administradores podem adicionar pontos.")
+        return redirect(url_for('index'))
    
     # Vou permitir ambos, mas idealmente admin modera arromar para so admin colocar pontos.
     
@@ -279,6 +309,9 @@ def add_ponto():
 @app.route('/delete_ponto/<int:ponto_id>')
 @login_required
 def delete_ponto(ponto_id):
+    if current_user.role != 'admin':
+        flash("Acesso negado.")
+        return redirect(url_for('index'))
     if current_user.role != 'admin':
         flash('Acesso negado.')
         return redirect(url_for('index'))

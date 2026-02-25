@@ -34,14 +34,15 @@
 
     // Adiciona pontos do backend
     pontos.forEach(ponto => {
-        // Fallback de imagem
-        const img = ponto.imagem ?
-            (ponto.imagem.startsWith('http') ? ponto.imagem : "{{ url_for('static', filename='') }}" + ponto.imagem.replace('static/', ''))
-            : "https://images.unsplash.com/photo-1581090700227-1e37b190418e"; // Imagem genérica bonita
+        let imgHTML = '';
+        if (ponto.imagem) {
+            const imgPath = ponto.imagem.startsWith('http') ? ponto.imagem : "{{ url_for('static', filename='') }}" + ponto.imagem.replace('static/', '');
+            imgHTML = `<img src="${imgPath}" alt="Imagem do local">`;
+        }
 
         const popupHTML = `
             <div class="popup-card">
-                <img src="${img}" alt="Imagem do local">
+                ${imgHTML}
                 <h3>${ponto.nome}</h3>
                 <p><i class="fa-solid fa-map-pin"></i> ${ponto.morada}</p>
                 <p><i class="fa-regular fa-clock"></i> ${ponto.horario || 'N/D'}</p>
