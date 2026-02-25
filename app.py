@@ -4,8 +4,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import os
 import sqlite3
-import json
-from pyproj import Transformer
 
 app = Flask(__name__)
 app.secret_key = ''  
@@ -52,34 +50,6 @@ class Database:
         """)
 
         self.conn.commit()
-        self.check_auto_import()
-
-    def check_auto_import(self):
-        """Checks if the table is empty and imports data from JSON if needed."""
-        self.cursor.execute("SELECT COUNT(*) FROM pontos_recolha")
-        if self.cursor.fetchone()[0] == 0:
-            json_path = os.path.join(os.path.dirname(__file__), "data", "a.json")
-            if os.path.exists(json_path):
-                print(f"Auto-importing data from {json_path}...")
-                with open(json_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-
-                transformer = Transformer.from_crs("epsg:27493", "epsg:4326")
-                
-                for item in data:
-                    nome = item.get("TPRS_DESC", "Ponto de Recolha")
-                    morada = f"{item.get('TOP_MOD_1', '')}, {item.get('PRSL_LOCAL', '')}".strip(", ")
-                    tipo = item.get("TPRS_DESC", "")
-                    x, y = item.get("PRSL_X"), item.get("PRSL_Y")
-
-                    if x is not None and y is not None:
-                        lat, lon = transformer.transform(x, y)
-                        # We use add_ponto method, which and we need to pass all arguments.
-                        # def add_ponto(self, nome, morada, horario, tipo_recolha, link,
-                        #             latitude, longitude, imagem=None, created_by=None):
-                        self.add_ponto(nome, morada, "", tipo, "", lat, lon)
-                
-                print("Auto-import complete.")
 
     def add_ponto(self, nome, morada, horario, tipo_recolha, link,
                   latitude, longitude, imagem=None, created_by=None):
@@ -289,4 +259,3 @@ def delete_ponto(ponto_id):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
-X
