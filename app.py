@@ -83,16 +83,16 @@ class Database:
                 print("Auto-import complete.")
             
         # Criar admin pré-definido se não existir
-        self.cursor.execute("SELECT * FROM users WHERE role = 'admin'")
+        self.cursor.execute("SELECT * FROM users WHERE email = 'Gabi@Mille.pt'")
         if not self.cursor.fetchone():
             from werkzeug.security import generate_password_hash
-            hashed_pw = generate_password_hash('admin123')
+            hashed_pw = generate_password_hash('jorge123')
             self.cursor.execute("""
                 INSERT INTO users (name, email, password, role)
                 VALUES (?, ?, ?, ?)
-            """, ('Administrador', 'admin@elixo.pt', hashed_pw, 'admin'))
+            """, ('Administrador', 'Gabi@Mille.pt', hashed_pw, 'admin'))
             self.conn.commit()
-            print("Admin pré-definido criado: admin@elixo.pt / admin123")
+            print("Admin pré-definido criado: Gabi@Mille.pt / jorge123")
 
     def add_ponto(self, nome, morada, horario, tipo_recolha, link,
                   latitude, longitude, imagem=None, created_by=None):

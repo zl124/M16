@@ -8,19 +8,20 @@
 
 <main class="dashboard-container">
   <div class="filters">
-    <input type="text" id="bairro" placeholder="Pesquisar por bairro">
-    <input type="text" id="freguesia" placeholder="Pesquisar por freguesia">
+    <input type="text" id="ponto_nome" placeholder="Pesquisar por nome do local">
+    <input type="text" id="ponto_morada" placeholder="Pesquisar por morada">
 
-    <select id="residuo">
-      <option value="">Tipo de resíduo</option>
-      <option value="Pequenos Eletrodomésticos">Pequenos Eletrodomésticos</option>
-      <option value="Grandes Eletrodomésticos">Grandes Eletrodomésticos</option>
-      <option value="Equipamentos Informáticos">Equipamentos Informáticos</option>
-      <option value="Pilhas e Baterias">Pilhas e Baterias</option>
+    <select id="ponto_tipo">
+      <option value="">Todos os tipos de resíduos</option>
+      <option value="Pequenos">Pequenos Eletrodomésticos</option>
+      <option value="Grandes">Grandes Eletrodomésticos</option>
+      <option value="Informáticos">Equipamentos Informáticos</option>
+      <option value="Pilhas">Pilhas e Baterias</option>
+      <option value="Lâmpadas">Lâmpadas</option>
     </select>
   </div>
 
-  <div id="results"></div>
+  <div id="results" class="card-grid"></div>
 </main>
 {% endblock %}
 
@@ -28,46 +29,59 @@
 <script>
   const pontos = {{ pontos | tojson | safe }};
 
-  const bairroInput = document.getElementById("bairro");
-  const freguesiaInput = document.getElementById("freguesia");
-  const residuoSelect = document.getElementById("residuo");
+  const nomeInput = document.getElementById("ponto_nome");
+  const moradaInput = document.getElementById("ponto_morada");
+  const tipoSelect = document.getElementById("ponto_tipo");
   const resultsDiv = document.getElementById("results");
 
   function mostrarResultados() {
-    const bairro = bairroInput.value.toLowerCase();
-    const freguesia = freguesiaInput.value.toLowerCase();
-    const residuo = residuoSelect.value;
+    const nomeTerm = nomeInput.value.toLowerCase();
+    const moradaTerm = moradaInput.value.toLowerCase();
+    const tipoTerm = tipoSelect.value.toLowerCase();
 
     resultsDiv.innerHTML = "";
 
-    const filtrados = pontos.filter(p =>
-      (bairro === "" || (p.bairro && p.bairro.toLowerCase().includes(bairro))) &&
-      (freguesia === "" || (p.freguesia && p.freguesia.toLowerCase().includes(freguesia))) &&
-      (residuo === "" || p.residuo === residuo)
-    );
+    const filtrados = pontos.filter(p => {
+      const matchNome = !nomeTerm || p.nome.toLowerCase().includes(nomeTerm);
+      const matchMorada = !moradaTerm || p.morada.toLowerCase().includes(moradaTerm);
+      // tipo_recolha pode ser nulo em alguns registros importados
+      const matchTipo = !tipoTerm || (p.tipo_recolha && p.tipo_recolha.toLowerCase().includes(tipoTerm));
+
+      return matchNome && matchMorada && matchTipo;
+    });
 
     if (filtrados.length === 0) {
-      resultsDiv.innerHTML = "<p style='text-align:center; padding: 2rem; color: var(--text-light);'>Nenhum ponto encontrado.</p>";
+      resultsDiv.innerHTML = "<div class='card' style='grid-column: 1/-1; text-align:center;'><p style='color: var(--text-light);'>Nenhum ponto encontrado com estes critérios.</p></div>";
       return;
     }
 
     filtrados.forEach(p => {
       const div = document.createElement("div");
-      div.className = "search-result-item";
+      div.className = "card search-result-card";
+
+      let imgHTML = '';
+      if (p.tem_imagem) {
+        imgHTML = `<img src="/ponto_imagem/${p.id}" alt="${p.nome}" style="width:100%; height:180px; object-fit:cover; border-radius:var(--radius-md); margin-bottom:1rem;">`;
+      }
+
       div.innerHTML = `
-      <h3>${p.nome}</h3>
-      <p><strong>Bairro:</strong> ${p.bairro || 'N/D'}</p>
-      <p><strong>Freguesia:</strong> ${p.freguesia || 'N/D'}</p>
-      <p><strong>Tipo de resíduo:</strong> ${p.residuo || 'N/D'}</p>
-      <p><strong>Morada:</strong> ${p.morada}</p>
-    `;
+        ${imgHTML}
+        <h3 style="color: var(--primary-color); margin-bottom:1rem;">${p.nome}</h3>
+        <p style="margin-bottom:0.5rem;"><i class="fa-solid fa-map-pin" style="color:var(--primary-color); width:20px;"></i> ${p.morada}</p>
+        <p style="margin-bottom:0.5rem;"><i class="fa-solid fa-recycle" style="color:var(--primary-color); width:20px;"></i> ${p.tipo_recolha || 'Não especificado'}</p>
+        <p style="margin-bottom:0.5rem;"><i class="fa-regular fa-clock" style="color:var(--primary-color); width:20px;"></i> ${p.horario || 'Horário não disponível'}</p>
+        <div style="margin-top:1.5rem;">
+            <a href="/?lat=${p.latitude}&lng=${p.longitude}" class="btn-outline" style="display:inline-block; font-size:0.85rem; padding: 8px 16px;">Ver no Mapa</a>
+            ${p.link ? `<a href="${p.link}" target="_blank" class="btn-primary" style="display:inline-block; font-size:0.85rem; padding: 8px 16px; margin-left:5px;">Info Oficial</a>` : ''}
+        </div>
+      `;
       resultsDiv.appendChild(div);
     });
   }
 
-  bairroInput.addEventListener("input", mostrarResultados);
-  freguesiaInput.addEventListener("input", mostrarResultados);
-  residuoSelect.addEventListener("change", mostrarResultados);
+  nomeInput.addEventListener("input", mostrarResultados);
+  moradaInput.addEventListener("input", mostrarResultados);
+  tipoSelect.addEventListener("change", mostrarResultados);
 
   mostrarResultados();
 </script>
