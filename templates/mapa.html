@@ -35,8 +35,8 @@
     // Adiciona pontos do backend
     pontos.forEach(ponto => {
         let imgHTML = '';
-        if (ponto.imagem) {
-            const imgPath = ponto.imagem.startsWith('http') ? ponto.imagem : "{{ url_for('static', filename='') }}" + ponto.imagem.replace('static/', '');
+        if (ponto.tem_imagem) {
+            const imgPath = `/ponto_imagem/${ponto.id}`;
             imgHTML = `<img src="${imgPath}" alt="Imagem do local">`;
         }
 

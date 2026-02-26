@@ -22,7 +22,7 @@ def setup_database():
             link TEXT,
             latitude REAL NOT NULL,
             longitude REAL NOT NULL,
-            imagem TEXT,
+            imagem BLOB,
             created_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )

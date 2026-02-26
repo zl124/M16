@@ -8,7 +8,8 @@ import json
 from pyproj import Transformer
 
 app = Flask(__name__)
-app.secret_key = ''  
+# Use an environment variable for the secret key on Render, with a fallback for local dev
+app.secret_key = os.environ.get("SECRET_KEY", "jorge")
 
 
 login_manager = LoginManager()
@@ -34,7 +35,7 @@ class Database:
                 link TEXT,
                 latitude REAL NOT NULL,
                 longitude REAL NOT NULL,
-                imagem TEXT,
+                imagem BLOB,
                 created_by INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -102,13 +103,13 @@ class Database:
              latitude, longitude, imagem, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (nome, morada, horario, tipo_recolha, link,
-              latitude, longitude, imagem, created_by))
+              latitude, longitude, sqlite3.Binary(imagem) if imagem else None, created_by))
 
         self.conn.commit()
 
     def get_pontos(self):
         self.cursor.execute(
-            "SELECT * FROM pontos_recolha ORDER BY created_at DESC"
+            "SELECT id, nome, morada, horario, tipo_recolha, link, latitude, longitude, (imagem IS NOT NULL) as tem_imagem, created_by, created_at FROM pontos_recolha ORDER BY created_at DESC"
         )
         return [dict(row) for row in self.cursor.fetchall()]
 
@@ -133,7 +134,7 @@ class Database:
                 UPDATE pontos_recolha
                 SET nome=?, morada=?, horario=?, tipo_recolha=?, link=?, latitude=?, longitude=?, imagem=?
                 WHERE id=?
-            """, (nome, morada, horario, tipo_recolha, link, latitude, longitude, imagem, ponto_id))
+            """, (nome, morada, horario, tipo_recolha, link, latitude, longitude, sqlite3.Binary(imagem), ponto_id))
         else:
             self.cursor.execute("""
                 UPDATE pontos_recolha
@@ -178,6 +179,18 @@ db = Database()
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+@app.route('/ponto_imagem/<int:ponto_id>')
+def serve_ponto_imagem(ponto_id):
+    ponto = db.get_ponto_by_id(ponto_id)
+    if ponto and ponto['imagem']:
+        import io
+        from flask import send_file
+        return send_file(
+            io.BytesIO(ponto['imagem']),
+            mimetype='image/jpeg' # Simplificado, idealmente salvaria o mimetype no BD
+        )
+    return redirect(url_for('static', filename='img/no-image.png')) # Fallback
 
 # Modelo de Usuário para Flask-Login
 class User(UserMixin):
@@ -281,13 +294,10 @@ def add_ponto():
     # Vou permitir ambos, mas idealmente admin modera arromar para so admin colocar pontos.
     
     imagem_file = request.files.get('imagem')
-    imagem_filename = None
+    imagem_data = None
 
     if imagem_file and imagem_file.filename != '':
-        imagem_filename = secure_filename(imagem_file.filename)
-        imagem_file.save(os.path.join(app.config['UPLOAD_FOLDER'], imagem_filename))
-        # Caminho relativo para salvar no BD
-        imagem_filename = f"static/uploads/{imagem_filename}" # Ajuste para URL correta no template
+        imagem_data = imagem_file.read()
 
     db.add_ponto(
         request.form['nome'],
@@ -297,7 +307,7 @@ def add_ponto():
         request.form.get('link', ''),
         float(request.form['latitude']),
         float(request.form['longitude']),
-        imagem_filename,
+        imagem_data,
         current_user.id
     )
     
@@ -306,14 +316,45 @@ def add_ponto():
     else:
         return redirect(url_for('client_dashboard'))
 
+@app.route('/edit_ponto/<int:ponto_id>', methods=['GET', 'POST'])
+@login_required
+def edit_ponto(ponto_id):
+    if current_user.role != 'admin':
+        flash("Acesso negado.")
+        return redirect(url_for('index'))
+    
+    ponto = db.get_ponto_by_id(ponto_id)
+    if not ponto:
+        flash("Ponto não encontrado.")
+        return redirect(url_for('admin_dashboard'))
+
+    if request.method == 'POST':
+        imagem_file = request.files.get('imagem')
+        imagem_data = None
+        if imagem_file and imagem_file.filename != '':
+            imagem_data = imagem_file.read()
+        
+        db.update_ponto(
+            ponto_id,
+            request.form['nome'],
+            request.form['morada'],
+            request.form.get('horario', ''),
+            request.form.get('tipo_recolha', ''),
+            request.form.get('link', ''),
+            float(request.form['latitude']),
+            float(request.form['longitude']),
+            imagem_data
+        )
+        flash("Ponto atualizado com sucesso!")
+        return redirect(url_for('admin_dashboard'))
+
+    return render_template('edit_ponto.html', ponto=ponto)
+
 @app.route('/delete_ponto/<int:ponto_id>')
 @login_required
 def delete_ponto(ponto_id):
     if current_user.role != 'admin':
         flash("Acesso negado.")
-        return redirect(url_for('index'))
-    if current_user.role != 'admin':
-        flash('Acesso negado.')
         return redirect(url_for('index'))
     
     db.delete_ponto(ponto_id)

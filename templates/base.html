@@ -15,6 +15,13 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+        // Inline script to prevent FOUC (Flash of Unstyled Content)
+        (function () {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
     {% block head %}{% endblock %}
 </head>
 
@@ -41,6 +48,9 @@
                 <a href="{{ url_for('login') }}">Login</a>
                 <a href="{{ url_for('register') }}" class="btn-primary">Registar</a>
                 {% endif %}
+                <button class="theme-toggle" id="themeToggle" title="Alternar Modo Escuro/Claro">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
             </div>
             <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Abrir menu">
                 <i class="fa-solid fa-bars"></i>
@@ -49,12 +59,35 @@
     </nav>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const toggle = document.getElementById('mobileMenuToggle');
             const nav = document.getElementById('navLinks');
-            
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = themeToggle.querySelector('i');
+
+            // Theme Logic
+            function updateThemeIcon(theme) {
+                if (theme === 'dark') {
+                    themeIcon.classList.remove('fa-moon');
+                    themeIcon.classList.add('fa-sun');
+                } else {
+                    themeIcon.classList.remove('fa-sun');
+                    themeIcon.classList.add('fa-moon');
+                }
+            }
+
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            updateThemeIcon(currentTheme);
+
+            themeToggle.addEventListener('click', () => {
+                const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+                updateThemeIcon(theme);
+            });
+
             if (toggle && nav) {
-                toggle.addEventListener('click', function() {
+                toggle.addEventListener('click', function () {
                     nav.classList.toggle('active');
                     const icon = toggle.querySelector('i');
                     if (nav.classList.contains('active')) {

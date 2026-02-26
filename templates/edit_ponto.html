@@ -42,7 +42,11 @@
                 <label>Alterar Imagem (Opcional)</label>
                 <input type="file" name="imagem" accept="image/*">
                 {% if ponto.imagem %}
-                <small>Imagem atual: {{ ponto.imagem.split('/')[-1] }}</small>
+                <div style="margin-top: 10px;">
+                    <p><small>Imagem atual:</small></p>
+                    <img src="{{ url_for('serve_ponto_imagem', ponto_id=ponto.id) }}" alt="Imagem atual"
+                        style="max-width: 200px; border-radius: 8px;">
+                </div>
                 {% endif %}
             </div>
 
