@@ -1,65 +1,306 @@
 {% extends "base.html" %}
 
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<header class="page-header">
-  <h1>E-Lixo Zero Lisboa</h1>
-  <p>O seu guia para o descarte responsável de resíduos eletrónicos</p>
+
+<!-- Hero Section -->
+<header class="page-header" style="padding: 4rem 1.5rem 5rem;">
+  <div style="max-width:800px; margin:0 auto;">
+    <div
+      style="display:inline-flex; align-items:center; gap:10px; background:rgba(255,255,255,.15); border-radius:999px; padding:8px 18px; font-size:.85rem; font-weight:600; margin-bottom:1.5rem; backdrop-filter:blur(6px);">
+      <i class="fa-solid fa-recycle"></i> Plataforma de Reciclagem Eletrónica
+    </div>
+    <h1 style="font-size:clamp(2rem,6vw,3.8rem); letter-spacing:-.03em; margin-bottom:1rem;">E-Lixo Zero Lisboa</h1>
+    <p style="font-size:clamp(1rem,2.5vw,1.3rem); opacity:.92; max-width:620px; margin:0 auto 2rem;">
+      O seu guia para o descarte responsável de resíduos eletrónicos na cidade de Lisboa.
+    </p>
+    <div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+      <a href="{{ url_for('index') }}" class="btn-primary" style="font-size:1rem; padding:.8rem 2rem;">
+        <i class="fa-solid fa-map-location-dot"></i> Explorar o Mapa
+      </a>
+      <a href="{{ url_for('pesquisa') }}" class="btn-outline"
+        style="font-size:1rem; padding:.75rem 2rem; border-color:rgba(255,255,255,.7); color:white !important;">
+        <i class="fa-solid fa-magnifying-glass"></i> Pesquisar Pontos
+      </a>
+    </div>
+  </div>
 </header>
 
-<main class="dashboard-container">
-  <section class="content-section">
-    <h2>O que é Lixo Eletrónico</h2>
-    <p>O lixo eletrónico (REEE) inclui aparelhos elétricos e eletrónicos que já não são utilizados, como telemóveis,
-      computadores, e eletrodomésticos.</p>
+<main class="dashboard-container" style="max-width:1100px;">
 
+  <!-- Counters Row -->
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1.25rem; margin-bottom:3rem;">
+    <div class="card" style="text-align:center; padding:2rem 1rem;">
+      <div style="font-size:2.8rem; font-weight:800; color:var(--primary-color); line-height:1;" id="cnt-pontos">—</div>
+      <div style="color:var(--text-light); font-size:.9rem; margin-top:.4rem;"><i class="fa-solid fa-map-pin"></i>
+        Pontos de Recolha</div>
+    </div>
+    <div class="card" style="text-align:center; padding:2rem 1rem;">
+      <div style="font-size:2.8rem; font-weight:800; color:var(--primary-color); line-height:1;" id="cnt-users">—</div>
+      <div style="color:var(--text-light); font-size:.9rem; margin-top:.4rem;"><i class="fa-solid fa-users"></i>
+        Utilizadores Registados</div>
+    </div>
+    <div class="card" style="text-align:center; padding:2rem 1rem;">
+      <div style="font-size:2.8rem; font-weight:800; color:var(--primary-color); line-height:1;" id="cnt-msgs">—</div>
+      <div style="color:var(--text-light); font-size:.9rem; margin-top:.4rem;"><i class="fa-solid fa-envelope"></i>
+        Mensagens Recebidas</div>
+    </div>
+    <div class="card" style="text-align:center; padding:2rem 1rem;">
+      <div style="font-size:2.8rem; font-weight:800; color:var(--primary-color); line-height:1;">100%</div>
+      <div style="color:var(--text-light); font-size:.9rem; margin-top:.4rem;"><i class="fa-solid fa-shield-halved"></i>
+        Dados Locais & Seguros</div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:3rem;">
+
+    <!-- Doughnut: por tipo -->
+    <div class="card">
+      <h3 style="color:var(--primary-color); margin-bottom:1.25rem; font-size:1.1rem;">
+        <i class="fa-solid fa-chart-pie"></i> Pontos por Tipo de Resíduo
+      </h3>
+      <div style="position:relative; height:260px;">
+        <canvas id="chartTipo" style="max-height:260px;"></canvas>
+      </div>
+    </div>
+
+    <!-- Bar: pontos por mês -->
+    <div class="card">
+      <h3 style="color:var(--primary-color); margin-bottom:1.25rem; font-size:1.1rem;">
+        <i class="fa-solid fa-chart-bar"></i> Pontos Adicionados por Mês
+      </h3>
+      <div style="position:relative; height:260px;">
+        <canvas id="chartMes" style="max-height:260px;"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Page views bar chart (full width) -->
+  <div class="card" style="margin-bottom:3rem;">
+    <h3 style="color:var(--primary-color); margin-bottom:1.25rem; font-size:1.1rem;">
+      <i class="fa-solid fa-chart-line"></i> Páginas Mais Visitadas (Logs de Acesso)
+    </h3>
+    <div style="position:relative; height:220px;">
+      <canvas id="chartRotas" style="max-height:220px;"></canvas>
+    </div>
+    <p style="color:var(--text-light); font-size:.78rem; margin-top:.75rem; text-align:right;">
+      <i class="fa-solid fa-circle-info"></i> Dados actualizados em tempo real a partir dos logs do servidor.
+    </p>
+  </div>
+
+  <!-- About / Info Sections -->
+  <section class="content-section">
+    <h2><i class="fa-solid fa-recycle" style="font-size:1.2rem; margin-right:6px;"></i> O que é Lixo Eletrónico?</h2>
+    <p style="margin-bottom:1.5rem;">O lixo eletrónico (REEE) inclui aparelhos elétricos e eletrónicos que já não são
+      utilizados, como telemóveis, computadores e eletrodomésticos. É um dos resíduos que mais cresce a nível mundial.
+    </p>
     <div class="icon-grid">
       <div class="icon-card">
-        <img src="https://cdn-icons-png.flaticon.com/512/3659/3659899.png" alt="Telemóveis">
-        <p>Telemóveis</p>
+        <i class="fa-solid fa-mobile-screen"
+          style="font-size:2.8rem; color:var(--primary-color); margin-bottom:.75rem; display:block;"></i>
+        <p style="font-weight:600;">Telemóveis</p>
       </div>
       <div class="icon-card">
-        <img src="https://cdn-icons-png.flaticon.com/512/1792/1792931.png" alt="Computadores">
-        <p>Computadores</p>
+        <i class="fa-solid fa-laptop"
+          style="font-size:2.8rem; color:var(--primary-color); margin-bottom:.75rem; display:block;"></i>
+        <p style="font-weight:600;">Computadores</p>
       </div>
       <div class="icon-card">
-        <img src="https://cdn-icons-png.flaticon.com/512/2942/2942841.png" alt="Pilhas">
-        <p>Pilhas</p>
+        <i class="fa-solid fa-battery-full"
+          style="font-size:2.8rem; color:var(--primary-color); margin-bottom:.75rem; display:block;"></i>
+        <p style="font-weight:600;">Pilhas</p>
+      </div>
+      <div class="icon-card">
+        <i class="fa-solid fa-tv"
+          style="font-size:2.8rem; color:var(--primary-color); margin-bottom:.75rem; display:block;"></i>
+        <p style="font-weight:600;">Televisões</p>
+      </div>
+      <div class="icon-card">
+        <i class="fa-solid fa-blender"
+          style="font-size:2.8rem; color:var(--primary-color); margin-bottom:.75rem; display:block;"></i>
+        <p style="font-weight:600;">Eletrodomésticos</p>
       </div>
     </div>
   </section>
 
   <section class="content-section">
-    <h2>Por que isso importa</h2>
-    <p>O descarte incorreto causa impactos ambientais graves e riscos reais à saúde pública através da contaminação de
-      solos e águas.</p>
+    <h2><i class="fa-solid fa-triangle-exclamation" style="font-size:1.2rem; margin-right:6px;"></i> Por que isso
+      importa?</h2>
+    <p style="margin-bottom:1.5rem;">O descarte incorreto causa impactos ambientais graves e riscos à saúde pública.</p>
     <div class="dashboard-grid">
-      <div class="card">
-        <h3>Impactos Negativos</h3>
-        <ul>
-          <li>Contaminação do solo e lençóis freáticos</li>
-          <li>Poluição do ar por queima inadequada</li>
-          <li>Exposição a metais pesados perigosos</li>
+      <div class="card" style="border-left:4px solid #dc2626;">
+        <h3 style="color:#dc2626; margin-bottom:1rem;"><i class="fa-solid fa-skull-crossbones"></i> Impactos Negativos
+        </h3>
+        <ul style="list-style:none; display:flex; flex-direction:column; gap:.7rem;">
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-xmark"
+              style="color:#dc2626; margin-top:.2rem;"></i> Contaminação do solo e lençóis freáticos</li>
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-xmark"
+              style="color:#dc2626; margin-top:.2rem;"></i> Poluição do ar por queima inadequada</li>
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-xmark"
+              style="color:#dc2626; margin-top:.2rem;"></i> Exposição a metais pesados perigosos</li>
         </ul>
       </div>
-      <div class="card">
-        <h3>Benefícios da Reciclagem</h3>
-        <ul>
-          <li>Redução drástica da poluição ambiental</li>
-          <li>Recuperação de materiais valiosos</li>
-          <li>Fomento à economia circular</li>
+      <div class="card" style="border-left:4px solid #22c55e;">
+        <h3 style="color:#22c55e; margin-bottom:1rem;"><i class="fa-solid fa-leaf"></i> Benefícios da Reciclagem</h3>
+        <ul style="list-style:none; display:flex; flex-direction:column; gap:.7rem;">
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-check"
+              style="color:#22c55e; margin-top:.2rem;"></i> Redução drástica da poluição ambiental</li>
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-check"
+              style="color:#22c55e; margin-top:.2rem;"></i> Recuperação de materiais valiosos</li>
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-check"
+              style="color:#22c55e; margin-top:.2rem;"></i> Fomento à economia circular</li>
         </ul>
       </div>
     </div>
   </section>
 
   <section class="content-section">
-    <h2>Dados & Estatísticas</h2>
-    <p>Portugal tem metas ambiciosas para a recolha de equipamentos eletrónicos. Saiba mais através das entidades
-      oficiais:</p>
-    <ul class="nav-links" style="display: block; margin-top: 1rem;">
-      <li><a href="https://apambiente.pt/" target="_blank">Agência Portuguesa do Ambiente (APA)</a></li>
-      <li><a href="https://electrao.pt/" target="_blank">Electrão - Gestão de Resíduos</a></li>
-    </ul>
+    <h2><i class="fa-solid fa-link" style="font-size:1.2rem; margin-right:6px;"></i> Entidades Oficiais</h2>
+    <p style="margin-bottom:1.25rem;">Portugal tem metas ambiciosas para a recolha de equipamentos eletrónicos:</p>
+    <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+      <a href="https://apambiente.pt/" target="_blank" class="btn-outline" style="font-size:.9rem;">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> Agência Portuguesa do Ambiente (APA)
+      </a>
+      <a href="https://electrao.pt/" target="_blank" class="btn-outline" style="font-size:.9rem;">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> Electrão — Gestão de Resíduos
+      </a>
+    </div>
   </section>
+
 </main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── Wine Red palette for charts ──────────────────────────────────────
+  const WINE_PALETTE = [
+    '#800020', '#a80030', '#c0183c', '#d94060', '#5c0018',
+    '#3d0010', '#780020', '#900028', '#eda0b0', '#fce8ed'
+  ];
+
+  function animateCounter(el, target, duration = 1200) {
+    let start = 0, step = Math.ceil(target / 60);
+    const interval = setInterval(() => {
+      start = Math.min(start + step, target);
+      el.textContent = start.toLocaleString('pt-PT');
+      if (start >= target) clearInterval(interval);
+    }, duration / 60);
+  }
+
+  // ── Load stats from API ───────────────────────────────────────────────
+  fetch('/api/stats')
+    .then(r => r.json())
+    .then(data => {
+      // Counters
+      animateCounter(document.getElementById('cnt-pontos'), data.total_pontos);
+      animateCounter(document.getElementById('cnt-users'), data.total_users);
+      animateCounter(document.getElementById('cnt-msgs'), data.total_msgs);
+
+      // Detect dark mode
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const textColor = isDark ? '#f1f5f9' : '#1e293b';
+      const gridColor = isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)';
+
+      Chart.defaults.color = textColor;
+      Chart.defaults.font.family = "'Outfit', sans-serif";
+
+      // ── Doughnut: por tipo ────────────────────────────────────────
+      if (data.por_tipo && data.por_tipo.length) {
+        new Chart(document.getElementById('chartTipo'), {
+          type: 'doughnut',
+          data: {
+            labels: data.por_tipo.map(d => d.tipo_recolha || 'Outros'),
+            datasets: [{
+              data: data.por_tipo.map(d => d.cnt),
+              backgroundColor: WINE_PALETTE,
+              borderColor: isDark ? '#1e293b' : '#fff',
+              borderWidth: 3,
+              hoverOffset: 12,
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'right', labels: { boxWidth: 14, padding: 12, font: { size: 11 } } }
+            },
+            animation: { animateScale: true, animateRotate: true, duration: 1000 }
+          }
+        });
+      } else {
+        document.getElementById('chartTipo').parentElement.innerHTML =
+          '<p style="color:var(--text-light); text-align:center; padding:2rem;">Ainda sem dados suficientes.</p>';
+      }
+
+      // ── Bar: por mês ──────────────────────────────────────────────
+      if (data.por_mes && data.por_mes.length) {
+        new Chart(document.getElementById('chartMes'), {
+          type: 'bar',
+          data: {
+            labels: data.por_mes.map(d => d.mes),
+            datasets: [{
+              label: 'Pontos adicionados',
+              data: data.por_mes.map(d => d.cnt),
+              backgroundColor: 'rgba(128,0,32,.75)',
+              borderColor: '#800020',
+              borderWidth: 2,
+              borderRadius: 6,
+              hoverBackgroundColor: '#a80030',
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, grid: { color: gridColor }, ticks: { precision: 0 } },
+              x: { grid: { display: false } }
+            },
+            animation: { duration: 900 }
+          }
+        });
+      } else {
+        document.getElementById('chartMes').parentElement.innerHTML =
+          '<p style="color:var(--text-light); text-align:center; padding:2rem;">Ainda sem dados suficientes.</p>';
+      }
+
+      // ── Bar: rotas mais visitadas ─────────────────────────────────
+      if (data.por_rota && data.por_rota.length) {
+        new Chart(document.getElementById('chartRotas'), {
+          type: 'bar',
+          data: {
+            labels: data.por_rota.map(d => d.acao),
+            datasets: [{
+              label: 'Visitas',
+              data: data.por_rota.map(d => d.cnt),
+              backgroundColor: WINE_PALETTE.slice(0, data.por_rota.length),
+              borderRadius: 5,
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { beginAtZero: true, grid: { color: gridColor }, ticks: { precision: 0 } },
+              y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            },
+            animation: { duration: 800 }
+          }
+        });
+      } else {
+        document.getElementById('chartRotas').parentElement.innerHTML =
+          '<p style="color:var(--text-light); text-align:center; padding:1.5rem;">Os logs de acesso ainda estão a ser recolhidos…</p>';
+      }
+    })
+    .catch(() => {
+      ['cnt-pontos', 'cnt-users', 'cnt-msgs'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '?';
+      });
+    });
+</script>
 {% endblock %}

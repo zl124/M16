@@ -1,15 +1,27 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import os
 import sqlite3
 import json
+import logging
+from datetime import timedelta, datetime
 from pyproj import Transformer
 
 app = Flask(__name__)
-# Use an environment variable for the secret key on Render, with a fallback for local dev
 app.secret_key = os.environ.get("SECRET_KEY", "jorge")
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
+app.config['REMEMBER_COOKIE_SECURE'] = False
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+
+# ── Python logging ──────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 
 login_manager = LoginManager()
@@ -52,6 +64,30 @@ class Database:
             )
         """)
 
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mensagens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                email TEXT NOT NULL,
+                assunto TEXT NOT NULL,
+                mensagem TEXT NOT NULL,
+                lida INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                acao TEXT NOT NULL,
+                detalhes TEXT DEFAULT '',
+                utilizador TEXT DEFAULT 'anon',
+                ip TEXT DEFAULT '',
+                status INTEGER DEFAULT 200,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         self.conn.commit()
         self.check_auto_import()
 
@@ -75,9 +111,6 @@ class Database:
 
                     if x is not None and y is not None:
                         lat, lon = transformer.transform(x, y)
-                        # We use add_ponto method, which and we need to pass all arguments.
-                        # def add_ponto(self, nome, morada, horario, tipo_recolha, link,
-                        #             latitude, longitude, imagem=None, created_by=None):
                         self.add_ponto(nome, morada, "", tipo, "", lat, lon)
                 
                 print("Auto-import complete.")
@@ -120,6 +153,19 @@ class Database:
         )
         row = self.cursor.fetchone()
         return dict(row) if row else None
+
+    def get_latest_ponto_timestamp(self):
+        self.cursor.execute("SELECT MAX(created_at) as ts FROM pontos_recolha")
+        row = self.cursor.fetchone()
+        return row['ts'] if row else None
+
+    def get_pontos_since(self, since_ts):
+        self.cursor.execute(
+            "SELECT COUNT(*) as cnt FROM pontos_recolha WHERE created_at > ?",
+            (since_ts,)
+        )
+        row = self.cursor.fetchone()
+        return row['cnt'] if row else 0
 
     def delete_ponto(self, ponto_id):
         self.cursor.execute(
@@ -171,6 +217,109 @@ class Database:
         row = self.cursor.fetchone()
         return dict(row) if row else None
 
+    # --- Mensagens de Contacto ---
+
+    def add_mensagem(self, nome, email, assunto, mensagem):
+        self.cursor.execute("""
+            INSERT INTO mensagens (nome, email, assunto, mensagem)
+            VALUES (?, ?, ?, ?)
+        """, (nome, email, assunto, mensagem))
+        self.conn.commit()
+
+    def get_mensagens(self):
+        self.cursor.execute(
+            "SELECT * FROM mensagens ORDER BY created_at DESC"
+        )
+        return [dict(row) for row in self.cursor.fetchall()]
+
+    def get_mensagens_nao_lidas(self):
+        self.cursor.execute("SELECT COUNT(*) as cnt FROM mensagens WHERE lida = 0")
+        row = self.cursor.fetchone()
+        return row['cnt'] if row else 0
+
+    def marcar_mensagem_lida(self, msg_id):
+        self.cursor.execute("UPDATE mensagens SET lida=1 WHERE id=?", (msg_id,))
+        self.conn.commit()
+
+    # --- Logs de Actividade ---
+
+    def add_log(self, acao, detalhes='', utilizador='anon', ip='', status=200):
+        try:
+            self.cursor.execute("""
+                INSERT INTO logs (acao, detalhes, utilizador, ip, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (acao, detalhes[:500], utilizador[:120], ip[:45], status,
+                   datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')))
+            self.conn.commit()
+        except Exception:
+            pass  # Nunca deixar o logging crashar a app
+
+    def get_logs(self, limit=200):
+        self.cursor.execute(
+            "SELECT * FROM logs ORDER BY created_at DESC LIMIT ?", (limit,)
+        )
+        return [dict(row) for row in self.cursor.fetchall()]
+
+    def get_stats(self):
+        """Returns aggregated stats for the About page charts."""
+        self.cursor.execute("SELECT COUNT(*) as total FROM pontos_recolha")
+        total_pontos = self.cursor.fetchone()['total']
+
+        self.cursor.execute("SELECT COUNT(*) as total FROM users")
+        total_users = self.cursor.fetchone()['total']
+
+        self.cursor.execute("SELECT COUNT(*) as total FROM mensagens")
+        total_msgs = self.cursor.fetchone()['total']
+
+        # Pontos por tipo (top 8)
+        self.cursor.execute("""
+            SELECT tipo_recolha, COUNT(*) as cnt
+            FROM pontos_recolha
+            WHERE tipo_recolha IS NOT NULL AND tipo_recolha != ''
+            GROUP BY tipo_recolha
+            ORDER BY cnt DESC
+            LIMIT 8
+        """)
+        por_tipo = [dict(r) for r in self.cursor.fetchall()]
+
+        # Pontos adicionados por mês (ultimos 6 meses)
+        self.cursor.execute("""
+            SELECT strftime('%Y-%m', created_at) as mes, COUNT(*) as cnt
+            FROM pontos_recolha
+            GROUP BY mes
+            ORDER BY mes DESC
+            LIMIT 6
+        """)
+        por_mes = list(reversed([dict(r) for r in self.cursor.fetchall()]))
+
+        # Vistas de página por rota (ultimas 500 entradas dos logs)
+        self.cursor.execute("""
+            SELECT acao, COUNT(*) as cnt
+            FROM logs
+            WHERE status < 400
+            GROUP BY acao
+            ORDER BY cnt DESC
+            LIMIT 8
+        """)
+        por_rota = [dict(r) for r in self.cursor.fetchall()]
+
+        return {
+            'total_pontos': total_pontos,
+            'total_users': total_users,
+            'total_msgs': total_msgs,
+            'por_tipo': por_tipo,
+            'por_mes': por_mes,
+            'por_rota': por_rota,
+        }
+
+    def get_logs_nao_vistos(self, since_minutes=60):
+        self.cursor.execute("""
+            SELECT COUNT(*) as cnt FROM logs
+            WHERE created_at > datetime('now', ? || ' minutes')
+        """, (f'-{since_minutes}',))
+        row = self.cursor.fetchone()
+        return row['cnt'] if row else 0
+
     def close(self):
         self.conn.close()
 
@@ -188,9 +337,9 @@ def serve_ponto_imagem(ponto_id):
         from flask import send_file
         return send_file(
             io.BytesIO(ponto['imagem']),
-            mimetype='image/jpeg' # Simplificado, idealmente salvaria o mimetype no BD
+            mimetype='image/jpeg'
         )
-    return redirect(url_for('static', filename='img/no-image.png')) # Fallback
+    return redirect(url_for('static', filename='img/no-image.png'))
 
 # Modelo de Usuário para Flask-Login
 class User(UserMixin):
@@ -207,6 +356,26 @@ def load_user(user_id):
         return User(user_data['id'], user_data['name'], user_data['email'], user_data['role'])
     return None
 
+# ── Activity Logging ──────────────────────────────────────────────────
+@app.after_request
+def log_request(response):
+    # Skip static files, images and API polling calls to reduce noise
+    skip_prefixes = ('/static/', '/ponto_imagem/', '/api/novos_pontos')
+    if not request.path.startswith(skip_prefixes):
+        try:
+            utilizador = current_user.email if current_user.is_authenticated else 'anon'
+        except Exception:
+            utilizador = 'anon'
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+        acao = f"{request.method} {request.path}"
+        detalhes = ''
+        if request.method == 'POST':
+            safe_keys = [k for k in request.form.keys() if 'password' not in k.lower()]
+            detalhes = ' | '.join(f"{k}={request.form.get(k,'')[:60]}" for k in safe_keys[:5])
+        logger.info(f"[{response.status_code}] {acao} | user={utilizador} | ip={ip} | {detalhes}")
+        db.add_log(acao, detalhes, utilizador, ip, response.status_code)
+    return response
+
 @app.route('/')
 def index():
     pontos = db.get_pontos()
@@ -221,8 +390,19 @@ def pesquisa():
     pontos = db.get_pontos()
     return render_template('pesquisa.html', pontos=pontos)
 
-@app.route('/contacto')
+@app.route('/contacto', methods=['GET', 'POST'])
 def contacto():
+    if request.method == 'POST':
+        nome = request.form.get('nome', '').strip()
+        email = request.form.get('email', '').strip()
+        assunto = request.form.get('assunto', '').strip()
+        mensagem = request.form.get('mensagem', '').strip()
+        if nome and email and assunto and mensagem:
+            db.add_mensagem(nome, email, assunto, mensagem)
+            flash('Mensagem enviada com sucesso! Entraremos em contacto em breve.', 'success')
+        else:
+            flash('Por favor preencha todos os campos.', 'error')
+        return redirect(url_for('contacto'))
     return render_template('contacto.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -230,12 +410,13 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
+        remember = request.form.get('remember') == 'on'
         
         user_data = db.get_user_by_email(email)
         
         if user_data and check_password_hash(user_data['password'], password):
             user = User(user_data['id'], user_data['name'], user_data['email'], user_data['role'])
-            login_user(user)
+            login_user(user, remember=remember)
             if user.role == 'admin':
                 return redirect(url_for('admin_dashboard'))
             else:
@@ -277,7 +458,9 @@ def admin_dashboard():
         return redirect(url_for('client_dashboard'))
     
     pontos = db.get_pontos()
-    return render_template('admin_dashboard.html', pontos=pontos)
+    mensagens = db.get_mensagens()
+    nao_lidas = db.get_mensagens_nao_lidas()
+    return render_template('admin_dashboard.html', pontos=pontos, mensagens=mensagens, nao_lidas=nao_lidas)
 
 @app.route('/client')
 @login_required
@@ -291,8 +474,6 @@ def add_ponto():
         flash("Apenas administradores podem adicionar pontos.")
         return redirect(url_for('index'))
    
-    # Vou permitir ambos, mas idealmente admin modera arromar para so admin colocar pontos.
-    
     imagem_file = request.files.get('imagem')
     imagem_data = None
 
@@ -360,7 +541,39 @@ def delete_ponto(ponto_id):
     db.delete_ponto(ponto_id)
     return redirect(url_for('admin_dashboard'))
 
+@app.route('/admin/marcar_lida/<int:msg_id>', methods=['POST'])
+@login_required
+def marcar_mensagem_lida(msg_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Acesso negado'}), 403
+    db.marcar_mensagem_lida(msg_id)
+    return redirect(url_for('admin_dashboard') + '#mensagens')
+
+# API para notificação de novos pontos
+@app.route('/api/novos_pontos')
+def api_novos_pontos():
+    latest_ts = db.get_latest_ponto_timestamp()
+    since_ts = request.args.get('since', '')
+    count = 0
+    if since_ts and latest_ts:
+        count = db.get_pontos_since(since_ts)
+    return jsonify({'latest_ts': latest_ts, 'novos': count})
+
+# API para estatísticas (página Sobre + admin)
+@app.route('/api/stats')
+def api_stats():
+    return jsonify(db.get_stats())
+
+# API para logs de actividade (admin only)
+@app.route('/admin/api/logs')
+@login_required
+def api_logs():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Acesso negado'}), 403
+    limit = int(request.args.get('limit', 100))
+    logs = db.get_logs(limit)
+    return jsonify(logs)
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
-X

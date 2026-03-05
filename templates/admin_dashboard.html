@@ -10,110 +10,188 @@
         <p>Bem-vindo, {{ current_user.name }}</p>
     </div>
 
-    <div class="dashboard-grid">
-        <!-- Coluna da Esquerda: Adicionar Ponto -->
-        <div class="card">
-            <h3><i class="fa-solid fa-plus-circle"></i> Adicionar Novo Ponto</h3>
-            <p style="margin-bottom: 15px; color: var(--text-light); font-size: 0.9rem;">
-                Clique no mapa para preencher a localização automaticamente.
-            </p>
+    <!-- Tabs de Navegação -->
+    <div style="display:flex; gap:10px; margin-bottom:1.5rem; flex-wrap:wrap;">
+        <button class="tab-btn active" onclick="showTab('tab-pontos')" id="btn-pontos">
+            <i class="fa-solid fa-map-location-dot"></i> Pontos de Recolha
+        </button>
+        <button class="tab-btn" onclick="showTab('tab-mensagens')" id="btn-mensagens">
+            <i class="fa-solid fa-envelope"></i> Mensagens
+            {% if nao_lidas > 0 %}
+            <span class="badge-notification"
+                style="background:#dc2626; color:white; font-size:0.7rem; padding:2px 7px; border-radius:999px; margin-left:4px;">{{
+                nao_lidas }}</span>
+            {% endif %}
+        </button>
+    </div>
 
-            <div id="map-preview"></div>
+    <!-- TAB: Pontos -->
+    <div id="tab-pontos" class="tab-content">
+        <div class="dashboard-grid">
+            <!-- Coluna da Esquerda: Adicionar Ponto -->
+            <div class="card">
+                <h3><i class="fa-solid fa-plus-circle"></i> Adicionar Novo Ponto</h3>
+                <p style="margin-bottom: 15px; color: var(--text-light); font-size: 0.9rem;">
+                    Clique no mapa para preencher a localização automaticamente.
+                </p>
 
-            <form action="{{ url_for('add_ponto') }}" method="post" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label>Nome do Local</label>
-                    <input type="text" name="nome" required>
-                </div>
+                <div id="map-preview"></div>
 
-                <div class="form-group">
-                    <label>Morada</label>
-                    <textarea name="morada" rows="2" required></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label>Horário</label>
-                    <input type="text" name="horario" placeholder="Ex: Seg-Sex 9h-18h">
-                </div>
-
-                <div class="form-group">
-                    <label>Tipo de Recolha</label>
-                    <input type="text" name="tipo_recolha" placeholder="Ex: Eletrodomésticos, Pilhas...">
-                </div>
-
-                <div class="form-group">
-                    <label>Link Oficial</label>
-                    <input type="text" name="link" placeholder="https://...">
-                </div>
-
-                <div class="form-group">
-                    <label>Imagem</label>
-                    <input type="file" name="imagem" accept="image/*">
-                </div>
-
-                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <form action="{{ url_for('add_ponto') }}" method="post" enctype="multipart/form-data">
                     <div class="form-group">
-                        <label>Latitude</label>
-                        <input type="number" step="any" id="latitude" name="latitude" readonly required>
+                        <label>Nome do Local</label>
+                        <input type="text" name="nome" required>
                     </div>
-                    <div class="form-group">
-                        <label>Longitude</label>
-                        <input type="number" step="any" id="longitude" name="longitude" readonly required>
-                    </div>
-                </div>
 
-                <button type="submit" class="full-width-btn">Adicionar Ponto</button>
-            </form>
+                    <div class="form-group">
+                        <label>Morada</label>
+                        <textarea name="morada" rows="2" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Horário</label>
+                        <input type="text" name="horario" placeholder="Ex: Seg-Sex 9h-18h">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de Recolha</label>
+                        <input type="text" name="tipo_recolha" placeholder="Ex: Eletrodomésticos, Pilhas...">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Link Oficial</label>
+                        <input type="text" name="link" placeholder="https://...">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Imagem</label>
+                        <input type="file" name="imagem" accept="image/*">
+                    </div>
+
+                    <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label>Latitude</label>
+                            <input type="number" step="any" id="latitude" name="latitude" readonly required>
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude</label>
+                            <input type="number" step="any" id="longitude" name="longitude" readonly required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="full-width-btn">Adicionar Ponto</button>
+                </form>
+            </div>
+
+            <!-- Coluna da Direita: Gerir Pontos -->
+            <div class="card">
+                <h3><i class="fa-solid fa-list-check"></i> Gerir Pontos Existentes</h3>
+                <div class="search-box" style="margin-bottom: 20px;">
+                    <input type="text" id="adminSearch" placeholder="Pesquisar por nome ou morada..."
+                        style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: var(--radius-md);">
+                </div>
+                <p style="margin-bottom: 15px; color: var(--text-light);">Lista de todos os pontos cadastrados.</p>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Tipo</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ponto in pontos %}
+                            <tr>
+                                <td>
+                                    <strong>{{ ponto.nome }}</strong><br>
+                                    <small style="color: var(--text-light)">{{ ponto.morada[:30] }}...</small>
+                                </td>
+                                <td>{{ ponto.tipo_recolha }}</td>
+                                <td>
+                                    <div style="display: flex; gap: 5px;">
+                                        <a href="{{ url_for('edit_ponto', ponto_id=ponto.id) }}" class="btn-outline"
+                                            style="padding: 5px 10px; font-size: 0.8rem;">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </a>
+                                        <a href="{{ url_for('delete_ponto', ponto_id=ponto.id) }}" class="btn-outline"
+                                            style="color: #dc2626; border-color: #dc2626; padding: 5px 10px; font-size: 0.8rem;"
+                                            onclick="return confirm('Tem certeza que deseja remover este ponto?');">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3">Nenhum ponto cadastrado ainda.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <!-- Coluna da Direita: Gerir Pontos -->
+    <!-- TAB: Mensagens -->
+    <div id="tab-mensagens" class="tab-content" style="display:none;" id="mensagens">
         <div class="card">
-            <h3><i class="fa-solid fa-list-check"></i> Gerir Pontos Existentes</h3>
-            <div class="search-box" style="margin-bottom: 20px;">
-                <input type="text" id="adminSearch" placeholder="Pesquisar por nome ou morada..."
-                    style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: var(--radius-md);">
-            </div>
-            <p style="margin-bottom: 15px; color: var(--text-light);">Lista de todos os pontos cadastrados.</p>
+            <h3><i class="fa-solid fa-inbox"></i> Mensagens de Contacto
+                {% if nao_lidas > 0 %}
+                <span
+                    style="background:#dc2626; color:white; font-size:0.75rem; padding:3px 10px; border-radius:999px; margin-left:8px; vertical-align:middle;">{{
+                    nao_lidas }} não lida{{ 's' if nao_lidas > 1 else '' }}</span>
+                {% endif %}
+            </h3>
 
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>Tipo</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for ponto in pontos %}
-                        <tr>
-                            <td>
-                                <strong>{{ ponto.nome }}</strong><br>
-                                <small style="color: var(--text-light)">{{ ponto.morada[:30] }}...</small>
-                            </td>
-                            <td>{{ ponto.tipo_recolha }}</td>
-                            <td>
-                                <div style="display: flex; gap: 5px;">
-                                    <a href="{{ url_for('edit_ponto', ponto_id=ponto.id) }}" class="btn-outline"
-                                        style="padding: 5px 10px; font-size: 0.8rem;">
-                                        <i class="fa-solid fa-pen-to-square"></i>
-                                    </a>
-                                    <a href="{{ url_for('delete_ponto', ponto_id=ponto.id) }}" class="btn-outline"
-                                        style="color: #dc2626; border-color: #dc2626; padding: 5px 10px; font-size: 0.8rem;"
-                                        onclick="return confirm('Tem certeza que deseja remover este ponto?');">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="3">Nenhum ponto cadastrado ainda.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            {% if mensagens %}
+            <div style="display:flex; flex-direction:column; gap:1rem; margin-top:1.5rem;">
+                {% for msg in mensagens %}
+                <div
+                    style="border:1px solid {% if msg.lida %}rgba(0,0,0,0.1){% else %}var(--primary-color){% endif %}; border-radius:var(--radius-md); padding:1.2rem; background: {% if msg.lida %}transparent{% else %}rgba(var(--primary-rgb,90,85,100),0.05){% endif %}; position:relative;">
+                    {% if not msg.lida %}
+                    <span
+                        style="position:absolute; top:12px; right:12px; background:var(--primary-color); color:white; font-size:0.7rem; padding:2px 8px; border-radius:999px;">Nova</span>
+                    {% endif %}
+                    <div style="display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:0.8rem;">
+                        <div>
+                            <strong>{{ msg.nome }}</strong>
+                            <br><small style="color:var(--text-light);">{{ msg.email }}</small>
+                        </div>
+                        <div style="margin-left:auto; text-align:right;">
+                            <small style="color:var(--text-light);">{{ msg.created_at }}</small>
+                        </div>
+                    </div>
+                    <p style="font-weight:600; margin-bottom:0.5rem;"><i class="fa-solid fa-tag"
+                            style="color:var(--primary-color);"></i> {{ msg.assunto }}</p>
+                    <p style="color:var(--text-light); white-space:pre-wrap;">{{ msg.mensagem }}</p>
+                    {% if not msg.lida %}
+                    <form action="{{ url_for('marcar_mensagem_lida', msg_id=msg.id) }}" method="POST"
+                        style="margin-top:0.8rem;">
+                        <button type="submit" class="btn-outline" style="font-size:0.8rem; padding:5px 14px;">
+                            <i class="fa-solid fa-check"></i> Marcar como lida
+                        </button>
+                    </form>
+                    {% else %}
+                    <p style="margin-top:0.5rem; color:#22c55e; font-size:0.8rem;"><i
+                            class="fa-solid fa-check-double"></i> Lida</p>
+                    {% endif %}
+                    <hr style="margin-top:0.8rem; border-color: rgba(0,0,0,0.1);">
+                    <a href="mailto:{{ msg.email }}?subject=Re: {{ msg.assunto | urlencode }}" class="btn-primary"
+                        style="font-size:0.8rem; padding:6px 16px; display:inline-block; margin-top:0.3rem;">
+                        <i class="fa-solid fa-reply"></i> Responder por Email
+                    </a>
+                </div>
+                {% endfor %}
             </div>
+            {% else %}
+            <div style="text-align:center; padding:3rem 0; color:var(--text-light);">
+                <i class="fa-solid fa-inbox" style="font-size:3rem; margin-bottom:1rem; display:block;"></i>
+                <p>Ainda não há mensagens de contacto.</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -121,6 +199,19 @@
 
 {% block scripts %}
 <script>
+    // Tab switching
+    function showTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).style.display = 'block';
+        document.getElementById('btn-' + tabId.replace('tab-', '')).classList.add('active');
+    }
+
+    // Se URL tiver #mensagens, abre essa tab
+    if (window.location.hash === '#mensagens') {
+        showTab('tab-mensagens');
+    }
+
     // Inicializa o mapa de inclusão
     const map = L.map('map-preview').setView([38.7223, -9.1393], 13);
 
@@ -131,15 +222,22 @@
 
     let marcadorUsuario = null;
 
-    // Icone vermelho para seleção
-    var redIcon = new L.Icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-    });
+    // ── Ícone SVG Wine Red ──────────────────────────────────
+    function criarIcone(cor) {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 41" width="26" height="41">
+            <defs>
+                <linearGradient id="gAdmin" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="${cor}" stop-opacity="1"/>
+                    <stop offset="100%" stop-color="#3d0010" stop-opacity="1"/>
+                </linearGradient>
+            </defs>
+            <path fill="url(#gAdmin)" stroke="#3d0010" stroke-width="1"
+                d="M13 0C5.8 0 0 5.8 0 13c0 9.8 13 28 13 28s13-18.2 13-28C26 5.8 20.2 0 13 0z"/>
+            <circle cx="13" cy="13" r="5.5" fill="rgba(255,255,255,0.9)"/>
+        </svg>`;
+        return L.divIcon({ html: svg, className: '', iconSize: [26, 41], iconAnchor: [13, 41], popupAnchor: [0, -38] });
+    }
+    const redIcon = criarIcone('#a80030');
 
     map.on('click', function (e) {
         const { lat, lng } = e.latlng;
@@ -167,4 +265,27 @@
         });
     });
 </script>
+
+<style>
+    .tab-btn {
+        padding: 10px 20px;
+        border: 2px solid var(--primary-color);
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--primary-color);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .tab-btn.active,
+    .tab-btn:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+</style>
 {% endblock %}

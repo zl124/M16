@@ -8,51 +8,43 @@
 
 <main class="dashboard-container" style="max-width: 720px;">
     <div class="card">
-        <form id="contactForm">
+        <form id="contactForm" action="{{ url_for('contacto') }}" method="POST">
             <div class="form-group">
                 <label for="nome">Nome Completo</label>
-                <input type="text" id="nome" required placeholder="Seu nome">
+                <input type="text" id="nome" name="nome" required placeholder="Seu nome"
+                    value="{{ current_user.name if current_user.is_authenticated else '' }}">
             </div>
 
             <div class="form-group">
                 <label for="email">E-mail de Contacto</label>
-                <input type="email" id="email" required placeholder="seu@email.com">
+                <input type="email" id="email" name="email" required placeholder="seu@email.com"
+                    value="{{ current_user.email if current_user.is_authenticated else '' }}">
             </div>
 
             <div class="form-group">
                 <label for="assunto">Assunto</label>
-                <input type="text" id="assunto" required placeholder="Sobre o que deseja falar?">
+                <input type="text" id="assunto" name="assunto" required placeholder="Sobre o que deseja falar?">
             </div>
 
             <div class="form-group">
                 <label for="mensagem">Mensagem</label>
-                <textarea id="mensagem" required rows="5" placeholder="Escreva aqui sua mensagem..."></textarea>
+                <textarea id="mensagem" name="mensagem" required rows="5"
+                    placeholder="Escreva aqui sua mensagem..."></textarea>
             </div>
 
-            <button type="submit" class="full-width-btn">Enviar Mensagem</button>
+            <button type="submit" class="full-width-btn">
+                <i class="fa-solid fa-paper-plane"></i> Enviar Mensagem
+            </button>
         </form>
     </div>
+
+    <div class="card" style="margin-top:1rem; text-align:center; padding: 1rem 2rem;">
+        <p style="color: var(--text-light); font-size: 0.9rem;">
+            <i class="fa-solid fa-envelope" style="color: var(--primary-color);"></i>
+            Também pode contactar-nos diretamente em
+            <a href="mailto:elixozero.lisboa@gmail.com"
+                style="color: var(--primary-color);">elixozero.lisboa@gmail.com</a>
+        </p>
+    </div>
 </main>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    document.getElementById("contactForm").addEventListener("submit", function (e) {
-        e.preventDefault();
-
-        const nome = document.getElementById("nome").value;
-        const email = document.getElementById("email").value;
-        const assunto = document.getElementById("assunto").value;
-        const mensagem = document.getElementById("mensagem").value;
-
-        const mailtoLink = `mailto:elixozero.lisboa@gmail.com?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(
-            `Nome: ${nome}
-Email: ${email}
-
-Mensagem:
-${mensagem}`)}`;
-
-        window.location.href = mailtoLink;
-    });
-</script>
 {% endblock %}

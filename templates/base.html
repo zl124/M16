@@ -3,7 +3,11 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#800020">
     <title>E-Lixo Zero Lisboa</title>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -34,7 +38,9 @@
             </a>
             <div class="nav-links" id="navLinks">
                 <a href="{{ url_for('main_info') }}"><i class="fa-solid fa-house"></i> Início</a>
-                <a href="{{ url_for('index') }}"><i class="fa-solid fa-map-location-dot"></i> Mapa</a>
+                <a href="{{ url_for('index') }}" id="navMapaLink" style="position:relative;"><i
+                        class="fa-solid fa-map-location-dot"></i> Mapa <span id="mapaNotifBadge"
+                        style="display:none; background:#dc2626; color:white; font-size:0.65rem; padding:1px 6px; border-radius:999px; vertical-align:middle; margin-left:2px;"></span></a>
                 <a href="{{ url_for('pesquisa') }}"><i class="fa-solid fa-magnifying-glass"></i> Pesquisa</a>
                 <a href="{{ url_for('contacto') }}"><i class="fa-solid fa-envelope"></i> Contacto</a>
                 {% if current_user.is_authenticated %}
@@ -110,6 +116,39 @@
                 });
             }
         });
+
+        // ── Notificação de Novos Pontos ─────────────────────────────────────
+        function verificarNovosPontos() {
+            const ultimaVisitaTs = localStorage.getItem('ultimaVisitaMapa') || '';
+            fetch('/api/novos_pontos?since=' + encodeURIComponent(ultimaVisitaTs))
+                .then(r => r.json())
+                .then(data => {
+                    const badge = document.getElementById('mapaNotifBadge');
+                    if (badge) {
+                        if (data.novos && data.novos > 0) {
+                            badge.textContent = data.novos;
+                            badge.style.display = 'inline';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                }).catch(() => { });
+        }
+
+        // Ao carregar a página do mapa, actualiza o timestamp
+        if (window.location.pathname === '/') {
+            if (typeof pontosLatestTs !== 'undefined') {
+                localStorage.setItem('ultimaVisitaMapa', pontosLatestTs);
+            } else {
+                // Pedir e guardar o timestamp mais recente
+                fetch('/api/novos_pontos').then(r => r.json()).then(d => {
+                    if (d.latest_ts) localStorage.setItem('ultimaVisitaMapa', d.latest_ts);
+                }).catch(() => { });
+            }
+        }
+
+        verificarNovosPontos();
+        setInterval(verificarNovosPontos, 60000);
     </script>
 
     <div class="main-content">
