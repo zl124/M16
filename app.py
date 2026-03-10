@@ -21,6 +21,7 @@ app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
+app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
@@ -390,12 +391,20 @@ def load_user(user_id):
 
 def send_email(subject, recipients, body_html):
     try:
+        if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+            logger.warning("Email não enviado: MAIL_USERNAME ou MAIL_PASSWORD não configurados.")
+            return False
+            
         msg = Message(subject, recipients=recipients)
         msg.html = body_html
         mail.send(msg)
+        logger.info(f"Email enviado com sucesso para: {recipients}")
         return True
     except Exception as e:
-        logger.error(f"Erro ao enviar email: {e}")
+        logger.error(f"Erro crítico ao enviar email: {type(e).__name__}: {str(e)}")
+        # Se for erro de autenticação, avisar explicitamente sobre App Passwords
+        if "AuthenticationFailed" in str(type(e)) or "535" in str(e):
+             logger.error("DICA: Verifique se está a usar uma 'Palavra-passe de aplicação' do Google e não a sua senha normal.")
         return False
 
 # ── Activity Logging ──────────────────────────────────────────────────
