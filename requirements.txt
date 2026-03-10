@@ -3,3 +3,4 @@ Flask-Login
 Werkzeug
 gunicorn
 pyproj
+Flask-Mail

@@ -80,7 +80,8 @@
 
   </div>
 
-  <!-- Page views bar chart (full width) -->
+  {% if current_user.is_authenticated and current_user.role == 'admin' %}
+  <!-- Page views bar chart (visible to admin for quick check, but moved to dashboard primarily) -->
   <div class="card" style="margin-bottom:3rem;">
     <h3 style="color:var(--primary-color); margin-bottom:1.25rem; font-size:1.1rem;">
       <i class="fa-solid fa-chart-line"></i> Páginas Mais Visitadas (Logs de Acesso)
@@ -92,6 +93,7 @@
       <i class="fa-solid fa-circle-info"></i> Dados actualizados em tempo real a partir dos logs do servidor.
     </p>
   </div>
+  {% endif %}
 
   <!-- About / Info Sections -->
   <section class="content-section">

@@ -22,9 +22,15 @@
                 </div>
             </div>
 
-            <div class="form-group">
-                <label>Morada</label>
-                <textarea name="morada" rows="2" required>{{ ponto.morada }}</textarea>
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                    <label>Morada</label>
+                    <textarea name="morada" rows="2" required>{{ ponto.morada }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Freguesia</label>
+                    <input type="text" name="freguesia" value="{{ ponto.freguesia }}">
+                </div>
             </div>
 
             <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">

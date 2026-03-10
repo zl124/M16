@@ -8,12 +8,25 @@ import json
 import logging
 from datetime import timedelta, datetime
 from pyproj import Transformer
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "jorge")
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
 app.config['REMEMBER_COOKIE_SECURE'] = False
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+
+# ── Email Configuration ───────────────────────────────────────────
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
+
+mail = Mail(app)
+serializer = URLSafeTimedSerializer(app.secret_key)
 
 # ── Python logging ──────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -42,6 +55,7 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome TEXT NOT NULL,
                 morada TEXT NOT NULL,
+                freguesia TEXT,
                 horario TEXT,
                 tipo_recolha TEXT,
                 link TEXT,
@@ -60,6 +74,7 @@ class Database:
                 email TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
                 role TEXT DEFAULT 'client',
+                is_verified INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -106,12 +121,14 @@ class Database:
                 for item in data:
                     nome = item.get("TPRS_DESC", "Ponto de Recolha")
                     morada = f"{item.get('TOP_MOD_1', '')}, {item.get('PRSL_LOCAL', '')}".strip(", ")
+                    freguesia = item.get("FRE_AB", "")
                     tipo = item.get("TPRS_DESC", "")
                     x, y = item.get("PRSL_X"), item.get("PRSL_Y")
 
                     if x is not None and y is not None:
                         lat, lon = transformer.transform(x, y)
-                        self.add_ponto(nome, morada, "", tipo, "", lat, lon)
+                        horario_json = item.get("HORARIO", "")
+                        self.add_ponto(nome, morada, freguesia, horario_json, tipo, "", lat, lon)
                 
                 print("Auto-import complete.")
             
@@ -121,28 +138,28 @@ class Database:
             from werkzeug.security import generate_password_hash
             hashed_pw = generate_password_hash('jorge123')
             self.cursor.execute("""
-                INSERT INTO users (name, email, password, role)
-                VALUES (?, ?, ?, ?)
-            """, ('Administrador', 'Gabi@Mille.pt', hashed_pw, 'admin'))
+                INSERT INTO users (name, email, password, role, is_verified)
+                VALUES (?, ?, ?, ?, ?)
+            """, ('Administrador', 'Gabi@Mille.pt', hashed_pw, 'admin', 1))
             self.conn.commit()
             print("Admin pré-definido criado: Gabi@Mille.pt / jorge123")
 
-    def add_ponto(self, nome, morada, horario, tipo_recolha, link,
+    def add_ponto(self, nome, morada, freguesia, horario, tipo_recolha, link,
                   latitude, longitude, imagem=None, created_by=None):
 
         self.cursor.execute("""
             INSERT INTO pontos_recolha
-            (nome, morada, horario, tipo_recolha, link,
+            (nome, morada, freguesia, horario, tipo_recolha, link,
              latitude, longitude, imagem, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (nome, morada, horario, tipo_recolha, link,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (nome, morada, freguesia, horario, tipo_recolha, link,
               latitude, longitude, sqlite3.Binary(imagem) if imagem else None, created_by))
 
         self.conn.commit()
 
     def get_pontos(self):
         self.cursor.execute(
-            "SELECT id, nome, morada, horario, tipo_recolha, link, latitude, longitude, (imagem IS NOT NULL) as tem_imagem, created_by, created_at FROM pontos_recolha ORDER BY created_at DESC"
+            "SELECT id, nome, morada, freguesia, horario, tipo_recolha, link, latitude, longitude, (imagem IS NOT NULL) as tem_imagem, created_by, created_at FROM pontos_recolha ORDER BY created_at DESC"
         )
         return [dict(row) for row in self.cursor.fetchall()]
 
@@ -174,28 +191,28 @@ class Database:
         )
         self.conn.commit()
 
-    def update_ponto(self, ponto_id, nome, morada, horario, tipo_recolha, link, latitude, longitude, imagem=None):
+    def update_ponto(self, ponto_id, nome, morada, freguesia, horario, tipo_recolha, link, latitude, longitude, imagem=None):
         if imagem:
             self.cursor.execute("""
                 UPDATE pontos_recolha
-                SET nome=?, morada=?, horario=?, tipo_recolha=?, link=?, latitude=?, longitude=?, imagem=?
+                SET nome=?, morada=?, freguesia=?, horario=?, tipo_recolha=?, link=?, latitude=?, longitude=?, imagem=?
                 WHERE id=?
-            """, (nome, morada, horario, tipo_recolha, link, latitude, longitude, sqlite3.Binary(imagem), ponto_id))
+            """, (nome, morada, freguesia, horario, tipo_recolha, link, latitude, longitude, sqlite3.Binary(imagem), ponto_id))
         else:
             self.cursor.execute("""
                 UPDATE pontos_recolha
-                SET nome=?, morada=?, horario=?, tipo_recolha=?, link=?, latitude=?, longitude=?
+                SET nome=?, morada=?, freguesia=?, horario=?, tipo_recolha=?, link=?, latitude=?, longitude=?
                 WHERE id=?
-            """, (nome, morada, horario, tipo_recolha, link, latitude, longitude, ponto_id))
+            """, (nome, morada, freguesia, horario, tipo_recolha, link, latitude, longitude, ponto_id))
         self.conn.commit()
 
 
-    def create_user(self, name, email, password, role='client'):
+    def create_user(self, name, email, password, role='client', is_verified=0):
         try:
             self.cursor.execute("""
-                INSERT INTO users (name, email, password, role)
-                VALUES (?, ?, ?, ?)
-            """, (name, email, password, role))
+                INSERT INTO users (name, email, password, role, is_verified)
+                VALUES (?, ?, ?, ?, ?)
+            """, (name, email, password, role, is_verified))
             self.conn.commit()
             return True
         except sqlite3.IntegrityError:
@@ -216,6 +233,14 @@ class Database:
         )
         row = self.cursor.fetchone()
         return dict(row) if row else None
+
+    def verify_user(self, email):
+        self.cursor.execute("UPDATE users SET is_verified=1 WHERE email=?", (email,))
+        self.conn.commit()
+
+    def get_all_verified_emails(self):
+        self.cursor.execute("SELECT email FROM users WHERE is_verified=1")
+        return [row['email'] for row in self.cursor.fetchall()]
 
     # --- Mensagens de Contacto ---
 
@@ -292,16 +317,22 @@ class Database:
         """)
         por_mes = list(reversed([dict(r) for r in self.cursor.fetchall()]))
 
-        # Vistas de página por rota (ultimas 500 entradas dos logs)
-        self.cursor.execute("""
-            SELECT acao, COUNT(*) as cnt
-            FROM logs
-            WHERE status < 400
-            GROUP BY acao
-            ORDER BY cnt DESC
-            LIMIT 8
-        """)
-        por_rota = [dict(r) for r in self.cursor.fetchall()]
+        # Vistas de página por rota (admin only)
+        por_rota = []
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated and current_user.role == 'admin':
+                self.cursor.execute("""
+                    SELECT acao, COUNT(*) as cnt
+                    FROM logs
+                    WHERE status < 400
+                    GROUP BY acao
+                    ORDER BY cnt DESC
+                    LIMIT 8
+                """)
+                por_rota = [dict(r) for r in self.cursor.fetchall()]
+        except:
+            pass
 
         return {
             'total_pontos': total_pontos,
@@ -343,18 +374,29 @@ def serve_ponto_imagem(ponto_id):
 
 # Modelo de Usuário para Flask-Login
 class User(UserMixin):
-    def __init__(self, id, name, email, role):
+    def __init__(self, id, name, email, role, is_verified):
         self.id = id
         self.name = name
         self.email = email
         self.role = role
+        self.is_verified = is_verified
 
 @login_manager.user_loader
 def load_user(user_id):
     user_data = db.get_user_by_id(user_id)
     if user_data:
-        return User(user_data['id'], user_data['name'], user_data['email'], user_data['role'])
+        return User(user_data['id'], user_data['name'], user_data['email'], user_data['role'], user_data['is_verified'])
     return None
+
+def send_email(subject, recipients, body_html):
+    try:
+        msg = Message(subject, recipients=recipients)
+        msg.html = body_html
+        mail.send(msg)
+        return True
+    except Exception as e:
+        logger.error(f"Erro ao enviar email: {e}")
+        return False
 
 # ── Activity Logging ──────────────────────────────────────────────────
 @app.after_request
@@ -415,14 +457,18 @@ def login():
         user_data = db.get_user_by_email(email)
         
         if user_data and check_password_hash(user_data['password'], password):
-            user = User(user_data['id'], user_data['name'], user_data['email'], user_data['role'])
+            if not user_data['is_verified']:
+                flash('Por favor, verifique o seu email antes de fazer login.', 'error')
+                return redirect(url_for('login'))
+                
+            user = User(user_data['id'], user_data['name'], user_data['email'], user_data['role'], user_data['is_verified'])
             login_user(user, remember=remember)
             if user.role == 'admin':
                 return redirect(url_for('admin_dashboard'))
             else:
                 return redirect(url_for('client_dashboard'))
         else:
-            flash('Email ou senha inválidos.')
+            flash('Email ou senha inválidos.', 'error')
             
     return render_template('login.html')
 
@@ -436,14 +482,36 @@ def register():
         # Hash da senha
         hashed_password = generate_password_hash(password)
         
-        # Cria usuário (Padrão: client)
+        # Cria usuário (Padrão: client, is_verified: 0)
         if db.create_user(name, email, hashed_password):
-            flash('Conta criada com sucesso! Faça login.')
+            token = serializer.dumps(email, salt='email-confirm')
+            verify_url = url_for('verify_email', token=token, _external=True)
+            
+            html = render_template('email_verify.html', name=name, verify_url=verify_url)
+            if send_email("Verifique a sua conta - E-Lixo Zero", [email], html):
+                flash('Conta criada com sucesso! Verifique o seu email para ativar a conta.', 'success')
+            else:
+                flash('Conta criada, mas houve um erro ao enviar o email de verificação.', 'warning')
             return redirect(url_for('login'))
         else:
-            flash('Erro ao criar conta. Email já existe?')
+            flash('Erro ao criar conta. Email já existe?', 'error')
             
     return render_template('register.html')
+
+@app.route('/verify/<token>')
+def verify_email(token):
+    try:
+        email = serializer.loads(token, salt='email-confirm', max_age=3600)
+    except SignatureExpired:
+        flash('O link de verificação expirou.', 'error')
+        return redirect(url_for('login'))
+    except Exception:
+        flash('Link de verificação inválido.', 'error')
+        return redirect(url_for('login'))
+        
+    db.verify_user(email)
+    flash('Conta verificada com sucesso! Já pode fazer login.', 'success')
+    return redirect(url_for('login'))
 
 @app.route('/logout')
 @login_required
@@ -471,7 +539,7 @@ def client_dashboard():
 @login_required
 def add_ponto():
     if current_user.role != 'admin':
-        flash("Apenas administradores podem adicionar pontos.")
+        flash("Apenas administradores podem adicionar pontos.", "error")
         return redirect(url_for('index'))
    
     imagem_file = request.files.get('imagem')
@@ -483,6 +551,7 @@ def add_ponto():
     db.add_ponto(
         request.form['nome'],
         request.form['morada'],
+        request.form.get('freguesia', ''),
         request.form.get('horario', ''),
         request.form.get('tipo_recolha', ''),
         request.form.get('link', ''),
@@ -491,6 +560,15 @@ def add_ponto():
         imagem_data,
         current_user.id
     )
+    
+    # Notificar utilizadores por email
+    emails = db.get_all_verified_emails()
+    if emails:
+        html = render_template('email_novo_ponto.html', 
+                               nome_ponto=request.form['nome'], 
+                               morada=request.form['morada'],
+                               tipo=request.form.get('tipo_recolha', 'Não especificado'))
+        send_email("Novo Ponto de Recolha Adicionado!", emails, html)
     
     if current_user.role == 'admin':
         return redirect(url_for('admin_dashboard'))
@@ -501,12 +579,12 @@ def add_ponto():
 @login_required
 def edit_ponto(ponto_id):
     if current_user.role != 'admin':
-        flash("Acesso negado.")
+        flash("Acesso negado.", "error")
         return redirect(url_for('index'))
     
     ponto = db.get_ponto_by_id(ponto_id)
     if not ponto:
-        flash("Ponto não encontrado.")
+        flash("Ponto não encontrado.", "warning")
         return redirect(url_for('admin_dashboard'))
 
     if request.method == 'POST':
@@ -519,6 +597,7 @@ def edit_ponto(ponto_id):
             ponto_id,
             request.form['nome'],
             request.form['morada'],
+            request.form.get('freguesia', ''),
             request.form.get('horario', ''),
             request.form.get('tipo_recolha', ''),
             request.form.get('link', ''),

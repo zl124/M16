@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -23,6 +24,20 @@
                 nao_lidas }}</span>
             {% endif %}
         </button>
+        <button class="tab-btn" onclick="showTab('tab-estatisticas')" id="btn-estatisticas">
+            <i class="fa-solid fa-chart-line"></i> Estatísticas
+        </button>
+    </div>
+
+    <!-- TAB: Estatísticas -->
+    <div id="tab-estatisticas" class="tab-content" style="display:none;">
+        <div class="card" style="margin-bottom:1.5rem;">
+            <h3><i class="fa-solid fa-chart-line"></i> Páginas Mais Visitadas</h3>
+            <p style="margin-bottom:1.5rem; color:var(--text-light);">Frequência de acesso às rotas da aplicação.</p>
+            <div style="position:relative; height:400px;">
+                <canvas id="chartRotasAdmin"></canvas>
+            </div>
+        </div>
     </div>
 
     <!-- TAB: Pontos -->
@@ -46,6 +61,11 @@
                     <div class="form-group">
                         <label>Morada</label>
                         <textarea name="morada" rows="2" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Freguesia</label>
+                        <input type="text" name="freguesia" placeholder="Ex: Avenidas Novas">
                     </div>
 
                     <div class="form-group">
@@ -106,7 +126,7 @@
                             <tr>
                                 <td>
                                     <strong>{{ ponto.nome }}</strong><br>
-                                    <small style="color: var(--text-light)">{{ ponto.morada[:30] }}...</small>
+                                    <small style="color: var(--text-light)">{{ ponto.freguesia }}</small>
                                 </td>
                                 <td>{{ ponto.tipo_recolha }}</td>
                                 <td>
@@ -264,6 +284,46 @@
             row.style.display = text.includes(term) ? '' : 'none';
         });
     });
+
+    // ── Estatísticas Admin ──────────────────────────────────────────
+    function carregarEstatisticas() {
+        const WINE_PALETTE = ['#800020', '#a80030', '#c0183c', '#d94060', '#5c0018'];
+        
+        fetch('/api/stats')
+            .then(r => r.json())
+            .then(data => {
+                if (data.por_rota && data.por_rota.length) {
+                    const ctx = document.getElementById('chartRotasAdmin');
+                    if (!ctx) return;
+                    
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.por_rota.map(d => d.acao),
+                            datasets: [{
+                                label: 'Visitas',
+                                data: data.por_rota.map(d => d.cnt),
+                                backgroundColor: WINE_PALETTE,
+                                borderRadius: 5,
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { beginAtZero: true, ticks: { precision: 0 } },
+                                y: { ticks: { font: { size: 11 } } }
+                            }
+                        }
+                    });
+                }
+            });
+    }
+
+    // Carregar quando entrar na tab
+    document.getElementById('btn-estatisticas').addEventListener('click', carregarEstatisticas);
 </script>
 
 <style>
