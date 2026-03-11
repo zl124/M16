@@ -40,6 +40,13 @@ def setup_database():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    
+    # Garantir coluna is_verified se a tabela já existia sem ela
+    try:
+        cursor.execute("SELECT is_verified FROM users LIMIT 1")
+    except sqlite3.OperationalError:
+        print("Adicionando coluna 'is_verified'...")
+        cursor.execute("ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 0")
 
     # 2. Import JSON Data
     if os.path.exists(json_path):

@@ -68,18 +68,15 @@ class Database:
             )
         """)
 
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                email TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL,
-                role TEXT DEFAULT 'client',
-                is_verified INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
+        self.cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'client')")
+        
+        # Migração: Garantir que a coluna is_verified existe
+        try:
+            self.cursor.execute("SELECT is_verified FROM users LIMIT 1")
+        except sqlite3.OperationalError:
+            print("Migração: Adicionando coluna 'is_verified' à tabela 'users'...")
+            self.cursor.execute("ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 0")
+        
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS mensagens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -208,7 +205,7 @@ class Database:
         self.conn.commit()
 
 
-    def create_user(self, name, email, password, role='client', is_verified=0):
+    def create_user(self, name, email, password, role='client', is_verified=1):
         try:
             self.cursor.execute("""
                 INSERT INTO users (name, email, password, role, is_verified)
@@ -216,7 +213,8 @@ class Database:
             """, (name, email, password, role, is_verified))
             self.conn.commit()
             return True
-        except sqlite3.IntegrityError:
+        except Exception as e:
+            logger.error(f"Erro ao criar utilizador {email}: {e}")
             return False
 
     def get_user_by_email(self, email):
@@ -242,6 +240,14 @@ class Database:
     def get_all_verified_emails(self):
         self.cursor.execute("SELECT email FROM users WHERE is_verified=1")
         return [row['email'] for row in self.cursor.fetchall()]
+
+    def get_users(self):
+        self.cursor.execute("SELECT id, name, email, role, is_verified, created_at FROM users ORDER BY created_at DESC")
+        return [dict(row) for row in self.cursor.fetchall()]
+
+    def verify_user_by_id(self, user_id):
+        self.cursor.execute("UPDATE users SET is_verified=1 WHERE id=?", (user_id,))
+        self.conn.commit()
 
     # --- Mensagens de Contacto ---
 
@@ -463,21 +469,27 @@ def login():
         password = request.form.get('password')
         remember = request.form.get('remember') == 'on'
         
-        user_data = db.get_user_by_email(email)
-        
-        if user_data and check_password_hash(user_data['password'], password):
-            if not user_data['is_verified']:
-                flash('Por favor, verifique o seu email antes de fazer login.', 'error')
-                return redirect(url_for('login'))
-                
-            user = User(user_data['id'], user_data['name'], user_data['email'], user_data['role'], user_data['is_verified'])
-            login_user(user, remember=remember)
-            if user.role == 'admin':
-                return redirect(url_for('admin_dashboard'))
+        try:
+            user_data = db.get_user_by_email(email)
+            if user_data and check_password_hash(user_data['password'], password):
+                # Check verification if column exists
+                is_verified = user_data.get('is_verified', 1) 
+                if not is_verified:
+                    flash('Por favor, verifique o seu email antes de fazer login.', 'error')
+                    return redirect(url_for('login'))
+                    
+                user = User(user_data['id'], user_data['name'], user_data['email'], user_data['role'], is_verified)
+                login_user(user, remember=remember)
+                logger.info(f"Login bem-sucedido: {email}")
+                if user.role == 'admin':
+                    return redirect(url_for('admin_dashboard'))
+                else:
+                    return redirect(url_for('client_dashboard'))
             else:
-                return redirect(url_for('client_dashboard'))
-        else:
-            flash('Email ou senha inválidos.', 'error')
+                flash('Email ou senha inválidos.', 'error')
+        except Exception as e:
+            logger.error(f"Erro no login: {e}")
+            flash('Erro no servidor ao tentar login.', 'error')
             
     return render_template('login.html')
 
@@ -488,22 +500,29 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         
-        # Hash da senha
-        hashed_password = generate_password_hash(password)
-        
-        # Cria usuário (Padrão: client, is_verified: 0)
-        if db.create_user(name, email, hashed_password):
-            token = serializer.dumps(email, salt='email-confirm')
-            verify_url = url_for('verify_email', token=token, _external=True)
+        try:
+            hashed_password = generate_password_hash(password)
             
-            html = render_template('email_verify.html', name=name, verify_url=verify_url)
-            if send_email("Verifique a sua conta - E-Lixo Zero", [email], html):
-                flash('Conta criada com sucesso! Verifique o seu email para ativar a conta.', 'success')
+            # Tenta criar o utilizador (já verificado por predefinição)
+            if db.create_user(name, email, hashed_password):
+                logger.info(f"Novo utilizador registado e auto-verificado: {email}")
+                
+                # Tentativa de enviar email, mas sem bloquear o login
+                try:
+                    token = serializer.dumps(email, salt='email-confirm')
+                    verify_url = url_for('verify_email', token=token, _external=True)
+                    html = render_template('email_verify.html', name=name, verify_url=verify_url)
+                    send_email("Bem-vindo ao E-Lixo Zero", [email], html)
+                except Exception as ex:
+                    logger.warning(f"Falha ao enviar email de boas-vindas para {email}: {ex}")
+                
+                flash('Conta criada com sucesso! Já pode fazer login agora.', 'success')
+                return redirect(url_for('login'))
             else:
-                flash('Conta criada, mas houve um erro ao enviar o email de verificação.', 'warning')
-            return redirect(url_for('login'))
-        else:
-            flash('Erro ao criar conta. Email já existe?', 'error')
+                flash('Erro ao criar conta. O email já poderá estar em uso.', 'error')
+        except Exception as e:
+            logger.error(f"Erro no registo: {e}")
+            flash('Erro interno ao processar o registo.', 'error')
             
     return render_template('register.html')
 
@@ -511,15 +530,15 @@ def register():
 def verify_email(token):
     try:
         email = serializer.loads(token, salt='email-confirm', max_age=3600)
+        db.verify_user(email)
+        logger.info(f"Email verificado: {email}")
+        flash('Conta verificada com sucesso! Já pode fazer login.', 'success')
     except SignatureExpired:
         flash('O link de verificação expirou.', 'error')
-        return redirect(url_for('login'))
-    except Exception:
-        flash('Link de verificação inválido.', 'error')
-        return redirect(url_for('login'))
+    except Exception as e:
+        logger.error(f"Erro na verificação de email: {e}")
+        flash('Link de verificação inválido ou expirado.', 'error')
         
-    db.verify_user(email)
-    flash('Conta verificada com sucesso! Já pode fazer login.', 'success')
     return redirect(url_for('login'))
 
 @app.route('/logout')
@@ -537,7 +556,17 @@ def admin_dashboard():
     pontos = db.get_pontos()
     mensagens = db.get_mensagens()
     nao_lidas = db.get_mensagens_nao_lidas()
-    return render_template('admin_dashboard.html', pontos=pontos, mensagens=mensagens, nao_lidas=nao_lidas)
+    users = db.get_users()
+    return render_template('admin_dashboard.html', pontos=pontos, mensagens=mensagens, nao_lidas=nao_lidas, users=users)
+
+@app.route('/admin/verify_user/<int:user_id>', methods=['POST'])
+@login_required
+def admin_verify_user(user_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Acesso negado'}), 403
+    db.verify_user_by_id(user_id)
+    flash("Utilizador verificado manualmente.", "success")
+    return redirect(url_for('admin_dashboard') + '#utilizadores')
 
 @app.route('/client')
 @login_required
