@@ -32,13 +32,55 @@
         </button>
     </div>
 
-    <!-- TAB: Estatísticas -->
+    <!-- TAB: Estatísticas/Logs -->
     <div id="tab-estatisticas" class="tab-content" style="display:none;">
-        <div class="card" style="margin-bottom:1.5rem;">
-            <h3><i class="fa-solid fa-chart-line"></i> Páginas Mais Visitadas</h3>
-            <p style="margin-bottom:1.5rem; color:var(--text-light);">Frequência de acesso às rotas da aplicação.</p>
-            <div style="position:relative; height:400px;">
-                <canvas id="chartRotasAdmin"></canvas>
+        <div class="dashboard-grid">
+            <div class="card">
+                <h3><i class="fa-solid fa-list-ul"></i> Registos de Atividade</h3>
+                <p style="margin-bottom:1.5rem; color:var(--text-light);">Últimas 100 ações realizadas na plataforma.</p>
+                
+                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                    <table style="font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Utilizador</th>
+                                <th>Ação</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td><small>{{ log.created_at }}</small></td>
+                                <td><strong>{{ log.utilizador }}</strong></td>
+                                <td><code>{{ log.acao }}</code></td>
+                                <td>
+                                    <span style="color: {% if log.status < 300 %}#22c55e{% elif log.status < 400 %}#3b82f6{% else %}#ef4444{% endif %}; font-weight: bold;">
+                                        {{ log.status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3><i class="fa-solid fa-gears"></i> Ferramentas de Sistema</h3>
+                <p style="margin-bottom:1rem; color:var(--text-light);">Verifique o estado dos serviços externos.</p>
+                
+                <div style="padding:1.5rem; border:1px solid rgba(0,0,0,0.1); border-radius:var(--radius-md); background:rgba(0,0,0,0.02);">
+                    <h4 style="margin-bottom:0.5rem;"><i class="fa-solid fa-envelope"></i> Configuração de Email</h4>
+                    <p style="font-size:0.85rem; margin-bottom:1rem;">Clique abaixo para enviar um email de teste para <strong>{{ current_user.email }}</strong>. Use isto para validar a sua App Password.</p>
+                    
+                    <form action="{{ url_for('admin_test_email') }}" method="POST">
+                        <button type="submit" class="btn-primary" style="font-size:0.85rem; padding:8px 20px;">
+                            <i class="fa-solid fa-paper-plane"></i> Testar Ligação de Email
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -335,46 +377,6 @@
             row.style.display = text.includes(term) ? '' : 'none';
         });
     });
-
-    // ── Estatísticas Admin ──────────────────────────────────────────
-    function carregarEstatisticas() {
-        const WINE_PALETTE = ['#800020', '#a80030', '#c0183c', '#d94060', '#5c0018'];
-        
-        fetch('/api/stats')
-            .then(r => r.json())
-            .then(data => {
-                if (data.por_rota && data.por_rota.length) {
-                    const ctx = document.getElementById('chartRotasAdmin');
-                    if (!ctx) return;
-                    
-                    new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: data.por_rota.map(d => d.acao),
-                            datasets: [{
-                                label: 'Visitas',
-                                data: data.por_rota.map(d => d.cnt),
-                                backgroundColor: WINE_PALETTE,
-                                borderRadius: 5,
-                            }]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                x: { beginAtZero: true, ticks: { precision: 0 } },
-                                y: { ticks: { font: { size: 11 } } }
-                            }
-                        }
-                    });
-                }
-            });
-    }
-
-    // Carregar quando entrar na tab
-    document.getElementById('btn-estatisticas').addEventListener('click', carregarEstatisticas);
 </script>
 
 <style>

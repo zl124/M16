@@ -10,6 +10,7 @@ from datetime import timedelta, datetime
 from pyproj import Transformer
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
+from threading import Thread
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "jorge")
@@ -395,23 +396,25 @@ def load_user(user_id):
         return User(user_data['id'], user_data['name'], user_data['email'], user_data['role'], user_data['is_verified'])
     return None
 
+def send_async_email(app, msg):
+    with app.app_context():
+        try:
+            mail.send(msg)
+            logger.info(f"Email enviado de forma assíncrona.")
+        except Exception as e:
+            logger.error(f"Erro no envio assíncrono: {str(e)}")
+
 def send_email(subject, recipients, body_html):
-    try:
-        if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
-            logger.warning("Email não enviado: MAIL_USERNAME ou MAIL_PASSWORD não configurados.")
-            return False
-            
-        msg = Message(subject, recipients=recipients)
-        msg.html = body_html
-        mail.send(msg)
-        logger.info(f"Email enviado com sucesso para: {recipients}")
-        return True
-    except Exception as e:
-        logger.error(f"Erro crítico ao enviar email: {type(e).__name__}: {str(e)}")
-        # Se for erro de autenticação, avisar explicitamente sobre App Passwords
-        if "AuthenticationFailed" in str(type(e)) or "535" in str(e):
-             logger.error("DICA: Verifique se está a usar uma 'Palavra-passe de aplicação' do Google e não a sua senha normal.")
+    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+        logger.warning("Email não enviado: MAIL_USERNAME ou MAIL_PASSWORD não configurados.")
         return False
+        
+    msg = Message(subject, recipients=recipients)
+    msg.html = body_html
+    
+    # Enviar de forma assíncrona para não bloquear a UI (importante para o Render)
+    Thread(target=send_async_email, args=(app._get_current_object(), msg)).start()
+    return True
 
 # ── Activity Logging ──────────────────────────────────────────────────
 @app.after_request
@@ -557,7 +560,8 @@ def admin_dashboard():
     mensagens = db.get_mensagens()
     nao_lidas = db.get_mensagens_nao_lidas()
     users = db.get_users()
-    return render_template('admin_dashboard.html', pontos=pontos, mensagens=mensagens, nao_lidas=nao_lidas, users=users)
+    logs = db.get_logs(limit=100)
+    return render_template('admin_dashboard.html', pontos=pontos, mensagens=mensagens, nao_lidas=nao_lidas, users=users, logs=logs)
 
 @app.route('/admin/verify_user/<int:user_id>', methods=['POST'])
 @login_required
@@ -567,6 +571,24 @@ def admin_verify_user(user_id):
     db.verify_user_by_id(user_id)
     flash("Utilizador verificado manualmente.", "success")
     return redirect(url_for('admin_dashboard') + '#utilizadores')
+
+@app.route('/admin/test_email', methods=['POST'])
+@login_required
+def admin_test_email():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Acesso negado'}), 403
+    
+    try:
+        # Tenta enviar um email de teste síncrono para dar feedback imediato no erro de conexão
+        msg = Message("Teste de Configuração - E-Lixo Zero", recipients=[current_user.email])
+        msg.body = "Se recebeu este email, a configuração SMTP está correta!"
+        mail.send(msg)
+        flash("Email de teste enviado com sucesso! Verifique a sua caixa de entrada.", "success")
+    except Exception as e:
+        logger.error(f"Erro no teste de email: {str(e)}")
+        flash(f"Erro ao enviar email: {str(e)}. Verifique as credenciais e App Password.", "error")
+        
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/client')
 @login_required
