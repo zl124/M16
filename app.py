@@ -572,6 +572,17 @@ def admin_verify_user(user_id):
     flash("Utilizador verificado manualmente.", "success")
     return redirect(url_for('admin_dashboard') + '#utilizadores')
 
+@app.route('/debug_email')
+def debug_email():
+    """Rota simples para teste rápido de email no Render"""
+    try:
+        msg = Message("Teste Render", recipients=["Gabi@Mille.pt"])
+        msg.body = "Email enviado do Render para teste de configuração! 🚀"
+        mail.send(msg)
+        return "SUCESSO: Email enviado! Verifique a sua caixa de entrada."
+    except Exception as e:
+        return f"ERRO: {str(e)}<br><br>Verifique se MAIL_USERNAME e MAIL_PASSWORD (App Password) estão corretos no Render."
+
 @app.route('/client')
 @login_required
 def client_dashboard():
