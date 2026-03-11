@@ -399,10 +399,14 @@ def load_user(user_id):
 def send_async_email(app, msg):
     with app.app_context():
         try:
+            utilizador = msg.recipients[0] if msg.recipients else 'desconhecido'
             mail.send(msg)
-            logger.info(f"Email enviado de forma assíncrona.")
+            logger.info(f"Email enviado de forma assíncrona para {utilizador}")
+            db.add_log("EMAIL_SEND", f"Sucesso ao enviar email para {utilizador}", "SISTEMA", "127.0.0.1", 200)
         except Exception as e:
-            logger.error(f"Erro no envio assíncrono: {str(e)}")
+            err_msg = str(e)
+            logger.error(f"Erro no envio assíncrono: {err_msg}")
+            db.add_log("EMAIL_ERROR", f"Falha no envio para {msg.recipients}: {err_msg}", "SISTEMA", "127.0.0.1", 500)
 
 def send_email(subject, recipients, body_html):
     if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
