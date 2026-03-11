@@ -206,7 +206,7 @@ class Database:
         self.conn.commit()
 
 
-    def create_user(self, name, email, password, role='client', is_verified=1):
+    def create_user(self, name, email, password, role='client', is_verified=0):
         try:
             self.cursor.execute("""
                 INSERT INTO users (name, email, password, role, is_verified)
@@ -398,25 +398,28 @@ def load_user(user_id):
 
 def send_async_email(app, msg):
     with app.app_context():
+        utilizador = msg.recipients[0] if msg.recipients else 'desconhecido'
+        logger.info(f"[THREAD] Iniciando envio de email para {utilizador}...")
         try:
-            utilizador = msg.recipients[0] if msg.recipients else 'desconhecido'
             mail.send(msg)
-            logger.info(f"Email enviado de forma assíncrona para {utilizador}")
+            logger.info(f"[THREAD] SUCESSO: Email enviado para {utilizador}")
             db.add_log("EMAIL_SEND", f"Sucesso ao enviar email para {utilizador}", "SISTEMA", "127.0.0.1", 200)
         except Exception as e:
             err_msg = str(e)
-            logger.error(f"Erro no envio assíncrono: {err_msg}")
+            logger.error(f"[THREAD] ERRO ao enviar para {utilizador}: {err_msg}")
             db.add_log("EMAIL_ERROR", f"Falha no envio para {msg.recipients}: {err_msg}", "SISTEMA", "127.0.0.1", 500)
 
 def send_email(subject, recipients, body_html):
+    logger.info(f"Solicitação de envio de email para {recipients} recebida.")
     if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
-        logger.warning("Email não enviado: MAIL_USERNAME ou MAIL_PASSWORD não configurados.")
+        logger.warning("Email CANCELADO: MAIL_USERNAME ou MAIL_PASSWORD não configurados.")
         return False
         
     msg = Message(subject, recipients=recipients)
     msg.html = body_html
     
     # Enviar de forma assíncrona para não bloquear a UI (importante para o Render)
+    logger.info(f"Disparando thread de email para {recipients}...")
     Thread(target=send_async_email, args=(app, msg)).start()
     return True
 
@@ -486,6 +489,11 @@ def login():
                     return redirect(url_for('login'))
                     
                 user = User(user_data['id'], user_data['name'], user_data['email'], user_data['role'], is_verified)
+                if not user.is_verified:
+                    logger.warning(f"Tentativa de login em conta não verificada: {email}")
+                    flash('A sua conta ainda não foi verificada. Por favor, verifique o seu email ou contacte o administrador.', 'warning')
+                    return redirect(url_for('login'))
+                    
                 login_user(user, remember=remember)
                 logger.info(f"Login bem-sucedido: {email}")
                 if user.role == 'admin':
@@ -510,20 +518,20 @@ def register():
         try:
             hashed_password = generate_password_hash(password)
             
-            # Tenta criar o utilizador (já verificado por predefinição)
+            # Tenta criar o utilizador (não verificado)
             if db.create_user(name, email, hashed_password):
-                logger.info(f"Novo utilizador registado e auto-verificado: {email}")
+                logger.info(f"Novo utilizador registado: {email}")
                 
-                # Tentativa de enviar email, mas sem bloquear o login
                 try:
                     token = serializer.dumps(email, salt='email-confirm')
                     verify_url = url_for('verify_email', token=token, _external=True)
                     html = render_template('email_verify.html', name=name, verify_url=verify_url)
-                    send_email("Bem-vindo ao E-Lixo Zero", [email], html)
+                    send_email("Verifique a sua conta - E-Lixo Zero", [email], html)
+                    flash('Conta criada com sucesso! Verifique o seu email para validar a conta.', 'success')
                 except Exception as ex:
-                    logger.warning(f"Falha ao enviar email de boas-vindas para {email}: {ex}")
+                    logger.error(f"Erro ao enviar email de verificação para {email}: {ex}")
+                    flash('Conta criada, mas houve um erro ao enviar o email de verificação. O administrador pode validar a sua conta no painel.', 'warning')
                 
-                flash('Conta criada com sucesso! Já pode fazer login agora.', 'success')
                 return redirect(url_for('login'))
             else:
                 flash('Erro ao criar conta. O email já poderá estar em uso.', 'error')
