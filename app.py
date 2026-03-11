@@ -572,24 +572,6 @@ def admin_verify_user(user_id):
     flash("Utilizador verificado manualmente.", "success")
     return redirect(url_for('admin_dashboard') + '#utilizadores')
 
-@app.route('/admin/test_email', methods=['POST'])
-@login_required
-def admin_test_email():
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Acesso negado'}), 403
-    
-    try:
-        # Tenta enviar um email de teste síncrono para dar feedback imediato no erro de conexão
-        msg = Message("Teste de Configuração - E-Lixo Zero", recipients=[current_user.email])
-        msg.body = "Se recebeu este email, a configuração SMTP está correta!"
-        mail.send(msg)
-        flash("Email de teste enviado com sucesso! Verifique a sua caixa de entrada.", "success")
-    except Exception as e:
-        logger.error(f"Erro no teste de email: {str(e)}")
-        flash(f"Erro ao enviar email: {str(e)}. Verifique as credenciais e App Password.", "error")
-        
-    return redirect(url_for('admin_dashboard'))
-
 @app.route('/client')
 @login_required
 def client_dashboard():
