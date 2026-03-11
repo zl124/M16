@@ -8,7 +8,7 @@ import json
 import logging
 from datetime import timedelta, datetime
 from pyproj import Transformer
-from flask_mail import Mail, Message
+import resend
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 from threading import Thread
 
@@ -18,16 +18,13 @@ app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
 app.config['REMEMBER_COOKIE_SECURE'] = False
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 
-# ── Email Configuration ───────────────────────────────────────────
-app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
-app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
+# ── Email Configuration (Resend) ──────────────────────────────────
+# Variável de ambiente necessária no Render: RESEND_API_KEY
+# Se não estiver no Render, use um valor padrão ou crie .env
+resend.api_key = os.environ.get('RESEND_API_KEY')
+MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'onboarding@resend.dev')
 
-mail = Mail(app)
+# O Flask-Mail não será mais usado, mas mantemos o serializer
 serializer = URLSafeTimedSerializer(app.secret_key)
 
 # ── Python logging ──────────────────────────────────────────────────────────
@@ -396,31 +393,35 @@ def load_user(user_id):
         return User(user_data['id'], user_data['name'], user_data['email'], user_data['role'], user_data['is_verified'])
     return None
 
-def send_async_email(app, msg):
-    with app.app_context():
-        utilizador = msg.recipients[0] if msg.recipients else 'desconhecido'
-        logger.info(f"[THREAD] Iniciando envio de email para {utilizador}...")
-        try:
-            mail.send(msg)
-            logger.info(f"[THREAD] SUCESSO: Email enviado para {utilizador}")
-            db.add_log("EMAIL_SEND", f"Sucesso ao enviar email para {utilizador}", "SISTEMA", "127.0.0.1", 200)
-        except Exception as e:
-            err_msg = str(e)
-            logger.error(f"[THREAD] ERRO ao enviar para {utilizador}: {err_msg}")
-            db.add_log("EMAIL_ERROR", f"Falha no envio para {msg.recipients}: {err_msg}", "SISTEMA", "127.0.0.1", 500)
+def send_async_email(dummy_app, params):
+    utilizador = params.get('to', 'desconhecido')
+    logger.info(f"[THREAD-RESEND] Iniciando envio de email para {utilizador}...")
+    try:
+        r = resend.Emails.send(params)
+        logger.info(f"[THREAD-RESEND] SUCESSO: Email enviado para {utilizador} (ID: {r.get('id')})")
+        db.add_log("EMAIL_SEND", f"Sucesso ao enviar email via Resend para {utilizador}", "SISTEMA", "127.0.0.1", 200)
+    except Exception as e:
+        err_msg = str(e)
+        logger.error(f"[THREAD-RESEND] ERRO Crítico ao enviar para {utilizador}: {err_msg}")
+        db.add_log("EMAIL_ERROR", f"Falha no envio Resend: {err_msg}", "SISTEMA", "127.0.0.1", 500)
 
 def send_email(subject, recipients, body_html):
-    logger.info(f"Solicitação de envio de email para {recipients} recebida.")
-    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
-        logger.warning("Email CANCELADO: MAIL_USERNAME ou MAIL_PASSWORD não configurados.")
+    logger.info(f"Solicitação de envio via Resend para {recipients} recebida.")
+    if not resend.api_key:
+        logger.warning("Email CANCELADO: RESEND_API_KEY não configurada.")
         return False
         
-    msg = Message(subject, recipients=recipients)
-    msg.html = body_html
-    
-    # Enviar de forma assíncrona para não bloquear a UI (importante para o Render)
-    logger.info(f"Disparando thread de email para {recipients}...")
-    Thread(target=send_async_email, args=(app, msg)).start()
+    for recipient in recipients:
+        params = {
+            "from": MAIL_DEFAULT_SENDER,
+            "to": recipient,
+            "subject": subject,
+            "html": body_html,
+        }
+        
+        # Enviar de forma assíncrona
+        Thread(target=send_async_email, args=(None, params)).start()
+        
     return True
 
 # ── Activity Logging ──────────────────────────────────────────────────
@@ -584,16 +585,41 @@ def admin_verify_user(user_id):
     flash("Utilizador verificado manualmente.", "success")
     return redirect(url_for('admin_dashboard') + '#utilizadores')
 
+@app.route('/debug_config')
+@login_required
+def debug_config():
+    """Mostra as configurações de email carregadas (mascaradas)"""
+    if current_user.role != 'admin':
+        return "Acesso negado", 403
+        
+    config_info = {
+        'RESEND_API_KEY': 'CONFIGURADA' if resend.api_key else 'NÃO CONFIGURADA',
+        'MAIL_DEFAULT_SENDER': MAIL_DEFAULT_SENDER,
+    }
+    
+    html = "<h1>Configuração de Email do Sistema</h1><ul>"
+    for k, v in config_info.items():
+        html += f"<li><strong>{k}:</strong> {v}</li>"
+    html += "</ul><p>Se o MAIL_SERVER for o seu email e não 'smtp.gmail.com', o erro está aí!</p>"
+    return html
+
 @app.route('/debug_email')
 def debug_email():
     """Rota simples para teste rápido de email no Render"""
+    destinatario = request.args.get('email', 'gabrielcrodrigues2008@gmail.com')
     try:
-        msg = Message("Teste Render", recipients=["Gabi@Mille.pt"])
-        msg.body = "Email enviado do Render para teste de configuração! 🚀"
-        mail.send(msg)
-        return "SUCESSO: Email enviado! Verifique a sua caixa de entrada."
+        logger.info(f"DEBUG_EMAIL: Tentando enviar email via Resend para {destinatario}...")
+        params = {
+            "from": MAIL_DEFAULT_SENDER,
+            "to": destinatario,
+            "subject": "Teste Resend Render",
+            "html": "Se estás a ver isto, o Resend funciona! 🚀",
+        }
+        r = resend.Emails.send(params)
+        return f"SUCESSO: Email enviado via Resend! ID: {r.get('id')}. Verifique a caixa de entrada e o SPAM."
     except Exception as e:
-        return f"ERRO: {str(e)}<br><br>Verifique se MAIL_USERNAME e MAIL_PASSWORD (App Password) estão corretos no Render."
+        logger.error(f"DEBUG_EMAIL ERRO: {str(e)}")
+        return f"ERRO RESEND: {str(e)}<br><br>Verifique o log e a variável RESEND_API_KEY no Render."
 
 @app.route('/client')
 @login_required
