@@ -413,7 +413,7 @@ def send_email(subject, recipients, body_html):
     msg.html = body_html
     
     # Enviar de forma assíncrona para não bloquear a UI (importante para o Render)
-    Thread(target=send_async_email, args=(app._get_current_object(), msg)).start()
+    Thread(target=send_async_email, args=(app, msg)).start()
     return True
 
 # ── Activity Logging ──────────────────────────────────────────────────
