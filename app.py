@@ -54,8 +54,8 @@ def verify_password(stored_password, provided_password):
 # ── Email Configuration (Resend) ──────────────────────────────────
 # Variável de ambiente necessária no Render: RESEND_API_KEY
 # Se não estiver no Render, use um valor padrão ou crie .env
-resend.api_key = os.environ.get('RESEND_API_KEY')
-MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'onboarding@resend.dev')
+resend.api_key = (os.environ.get('RESEND_API_KEY') or '').strip() or None
+MAIL_DEFAULT_SENDER = (os.environ.get('MAIL_DEFAULT_SENDER') or 'onboarding@resend.dev').strip()
 
 # O Flask-Mail não será mais usado, mas mantemos o serializer
 serializer = URLSafeTimedSerializer(app.secret_key)
@@ -446,7 +446,7 @@ def send_async_email(dummy_app, params):
 def send_email(subject, recipients, body_html):
     logger.info(f"Solicitação de envio via Resend para {recipients} recebida.")
     if not resend.api_key:
-        logger.warning("Email CANCELADO: RESEND_API_KEY não configurada.")
+        logger.warning(f"Email CANCELADO: RESEND_API_KEY não configurada. Tentativa de envio para {recipients}")
         return False
         
     for recipient in recipients:
@@ -458,6 +458,7 @@ def send_email(subject, recipients, body_html):
         }
         
         # Enviar de forma assíncrona
+        logger.info(f"Enviando email de: {MAIL_DEFAULT_SENDER} para: {recipient}")
         Thread(target=send_async_email, args=(None, params)).start()
         
     return True
