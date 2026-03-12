@@ -1,6 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+from cryptography.fernet import Fernet
+import base64
+import hashlib
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import os
 import sqlite3
@@ -17,6 +20,36 @@ app.secret_key = os.environ.get("SECRET_KEY", "jorge")
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
 app.config['REMEMBER_COOKIE_SECURE'] = False
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+
+# ── Password Encryption (AES) ───────────────────────────────────
+# Gerar uma chave de 32 bytes compatível com Fernet a partir do secret_key
+def get_encryption_key(key_str):
+    h = hashlib.sha256(key_str.encode()).digest()
+    return base64.urlsafe_b64encode(h)
+
+CIPHER_KEY = get_encryption_key(app.secret_key)
+cipher_suite = Fernet(CIPHER_KEY)
+
+def encrypt_password(password):
+    """Encripta a password usando AES (Fernet)."""
+    return cipher_suite.encrypt(password.encode()).decode()
+
+def decrypt_password(token):
+    """Desencripta a password."""
+    try:
+        return cipher_suite.decrypt(token.encode()).decode()
+    except Exception:
+        return None
+
+def verify_password(stored_password, provided_password):
+    """Verifica se a password fornecida corresponde à encriptada (ou hash antigo)."""
+    # Se começar por 'gbr' ou similar é hash PBKDF2 do Werkzeug (compatibilidade)
+    if stored_password.startswith(('pbkdf2:sha256:', 'scrypt:')):
+        return check_password_hash(stored_password, provided_password)
+    
+    # Caso contrário, tenta AES
+    decrypted = decrypt_password(stored_password)
+    return decrypted == provided_password
 
 # ── Email Configuration (Resend) ──────────────────────────────────
 # Variável de ambiente necessária no Render: RESEND_API_KEY
@@ -131,14 +164,13 @@ class Database:
         # Criar admin pré-definido se não existir
         self.cursor.execute("SELECT * FROM users WHERE email = 'Gabi@Mille.pt'")
         if not self.cursor.fetchone():
-            from werkzeug.security import generate_password_hash
-            hashed_pw = generate_password_hash('jorge123')
+            hashed_pw = encrypt_password('jorge123')
             self.cursor.execute("""
                 INSERT INTO users (name, email, password, role, is_verified)
                 VALUES (?, ?, ?, ?, ?)
             """, ('Administrador', 'Gabi@Mille.pt', hashed_pw, 'admin', 1))
             self.conn.commit()
-            print("Admin pré-definido criado: Gabi@Mille.pt / jorge123")
+            print("Admin pré-definido criado com AES: Gabi@Mille.pt / jorge123")
 
     def add_ponto(self, nome, morada, freguesia, horario, tipo_recolha, link,
                   latitude, longitude, imagem=None, created_by=None):
@@ -398,12 +430,18 @@ def send_async_email(dummy_app, params):
     logger.info(f"[THREAD-RESEND] Iniciando envio de email para {utilizador}...")
     try:
         r = resend.Emails.send(params)
-        logger.info(f"[THREAD-RESEND] SUCESSO: Email enviado para {utilizador} (ID: {r.get('id')})")
-        db.add_log("EMAIL_SEND", f"Sucesso ao enviar email via Resend para {utilizador}", "SISTEMA", "127.0.0.1", 200)
+        # Resend returns a dict or the response object depending on version/success
+        if isinstance(r, dict) and 'id' in r:
+            logger.info(f"[THREAD-RESEND] SUCESSO: Email enviado para {utilizador} (ID: {r.get('id')})")
+            db.add_log("EMAIL_SEND", f"Sucesso ao enviar email via Resend para {utilizador}", "SISTEMA", "127.0.0.1", 200)
+        else:
+            logger.warning(f"[THREAD-RESEND] Resposta inesperada do Resend: {r}")
+            db.add_log("EMAIL_WARNING", f"Resposta inesperada do Resend: {r}", "SISTEMA", "127.0.0.1", 200)
     except Exception as e:
         err_msg = str(e)
-        logger.error(f"[THREAD-RESEND] ERRO Crítico ao enviar para {utilizador}: {err_msg}")
-        db.add_log("EMAIL_ERROR", f"Falha no envio Resend: {err_msg}", "SISTEMA", "127.0.0.1", 500)
+        logger.error(f"[THREAD-RESEND] ERRO ao enviar para {utilizador}: {err_msg}")
+        # Tentar extrair mais info se for erro de API
+        db.add_log("EMAIL_ERROR", f"Falha no envio Resend para {utilizador}: {err_msg}", "SISTEMA", "127.0.0.1", 500)
 
 def send_email(subject, recipients, body_html):
     logger.info(f"Solicitação de envio via Resend para {recipients} recebida.")
@@ -482,7 +520,7 @@ def login():
         
         try:
             user_data = db.get_user_by_email(email)
-            if user_data and check_password_hash(user_data['password'], password):
+            if user_data and verify_password(user_data['password'], password):
                 # Check verification if column exists
                 is_verified = user_data.get('is_verified', 1) 
                 if not is_verified:
@@ -517,7 +555,7 @@ def register():
         password = request.form.get('password')
         
         try:
-            hashed_password = generate_password_hash(password)
+            hashed_password = encrypt_password(password)
             
             # Tenta criar o utilizador (não verificado)
             if db.create_user(name, email, hashed_password):

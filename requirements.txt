@@ -4,3 +4,4 @@ Werkzeug
 gunicorn
 pyproj
 resend
+cryptography

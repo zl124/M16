@@ -80,20 +80,6 @@
 
   </div>
 
-  {% if current_user.is_authenticated and current_user.role == 'admin' %}
-  <!-- Page views bar chart (visible to admin for quick check, but moved to dashboard primarily) -->
-  <div class="card" style="margin-bottom:3rem;">
-    <h3 style="color:var(--primary-color); margin-bottom:1.25rem; font-size:1.1rem;">
-      <i class="fa-solid fa-chart-line"></i> Páginas Mais Visitadas (Logs de Acesso)
-    </h3>
-    <div style="position:relative; height:220px;">
-      <canvas id="chartRotas" style="max-height:220px;"></canvas>
-    </div>
-    <p style="color:var(--text-light); font-size:.78rem; margin-top:.75rem; text-align:right;">
-      <i class="fa-solid fa-circle-info"></i> Dados actualizados em tempo real a partir dos logs do servidor.
-    </p>
-  </div>
-  {% endif %}
 
   <!-- About / Info Sections -->
   <section class="content-section">
@@ -269,34 +255,6 @@
           '<p style="color:var(--text-light); text-align:center; padding:2rem;">Ainda sem dados suficientes.</p>';
       }
 
-      // ── Bar: rotas mais visitadas ─────────────────────────────────
-      if (data.por_rota && data.por_rota.length) {
-        new Chart(document.getElementById('chartRotas'), {
-          type: 'bar',
-          data: {
-            labels: data.por_rota.map(d => d.acao),
-            datasets: [{
-              label: 'Visitas',
-              data: data.por_rota.map(d => d.cnt),
-              backgroundColor: WINE_PALETTE.slice(0, data.por_rota.length),
-              borderRadius: 5,
-            }]
-          },
-          options: {
-            indexAxis: 'y',
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { beginAtZero: true, grid: { color: gridColor }, ticks: { precision: 0 } },
-              y: { grid: { display: false }, ticks: { font: { size: 11 } } }
-            },
-            animation: { duration: 800 }
-          }
-        });
-      } else {
-        document.getElementById('chartRotas').parentElement.innerHTML =
-          '<p style="color:var(--text-light); text-align:center; padding:1.5rem;">Os logs de acesso ainda estão a ser recolhidos…</p>';
-      }
     })
     .catch(() => {
       ['cnt-pontos', 'cnt-users', 'cnt-msgs'].forEach(id => {

@@ -140,15 +140,17 @@
             if (typeof pontosLatestTs !== 'undefined') {
                 localStorage.setItem('ultimaVisitaMapa', pontosLatestTs);
             } else {
-                // Pedir e guardar o timestamp mais recente
                 fetch('/api/novos_pontos').then(r => r.json()).then(d => {
                     if (d.latest_ts) localStorage.setItem('ultimaVisitaMapa', d.latest_ts);
                 }).catch(() => { });
             }
+        } else {
+            // Se não estivermos no mapa, verificamos se há pontos novos desde a última visita
+            verificarNovosPontos();
         }
 
-        verificarNovosPontos();
-        setInterval(verificarNovosPontos, 60000);
+        // Aumentar o cooldown para 10 minutos (600000ms) para não spamar os logs
+        setInterval(verificarNovosPontos, 600000);
     </script>
 
     <div class="main-content">
