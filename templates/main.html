@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- Secção Principal (Destaque Inicial) -->
+<header class="page-header" style="padding: 4rem 1.5rem 5rem;">
+  <div style="max-width:800px; margin:0 auto;">
+    <div
+      style="display:inline-flex; align-items:center; gap:10px; background:rgba(255,255,255,.15); border-radius:999px; padding:8px 18px; font-size:.85rem; font-weight:600; margin-bottom:1.5rem; backdrop-filter:blur(6px);">
+      <i class="fa-solid fa-recycle"></i> Plataforma de Reciclagem Eletrónica
+    </div>
+    <h1 style="font-size:clamp(2rem,6vw,3.8rem); letter-spacing:-.03em; margin-bottom:1rem;">E-Lixo Zero Lisboa</h1>
+    <p style="font-size:clamp(1rem,2.5vw,1.3rem); opacity:.92; max-width:620px; margin:0 auto 2rem;">
+      O seu guia para o descarte responsável de resíduos eletrónicos na cidade de Lisboa.
+    </p>
+    <div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+      <a href="{{ url_for('index') }}" class="btn-primary" style="font-size:1rem; padding:.8rem 2rem;">
+        <i class="fa-solid fa-map-location-dot"></i> Explorar o Mapa
+      </a>
+      <a href="{{ url_for('pesquisa') }}" class="btn-outline"
+        style="font-size:1rem; padding:.75rem 2rem; border-color:rgba(255,255,255,.7); color:white !important;">
+        <i class="fa-solid fa-magnifying-glass"></i> Pesquisar Pontos
+      </a>
+    </div>
+  </div>
+</header>
+
+<main class="dashboard-container" style="max-width:1100px;">
+
+  <!-- Linha de Contadores Estatísticos -->
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1.25rem; margin-bottom:3rem;">
+    <div class="card" style="text-align:center; padding:2rem 1rem;">
+      <div style="font-size:2.8rem; font-weight:800; color:var(--primary-color); line-height:1;" id="cnt-pontos">—</div>
+      <div style="color:var(--text-light); font-size:.9rem; margin-top:.4rem;"><i class="fa-solid fa-map-pin"></i>
+        Pontos de Recolha</div>
+    </div>
+    <div class="card" style="text-align:center; padding:2rem 1rem;">
+      <div style="font-size:2.8rem; font-weight:800; color:var(--primary-color); line-height:1;" id="cnt-users">—</div>
+      <div style="color:var(--text-light); font-size:.9rem; margin-top:.4rem;"><i class="fa-solid fa-users"></i>
+        Utilizadores Registados</div>
+    </div>
+    <div class="card" style="text-align:center; padding:2rem 1rem;">
+      <div style="font-size:2.8rem; font-weight:800; color:var(--primary-color); line-height:1;" id="cnt-msgs">—</div>
+      <div style="color:var(--text-light); font-size:.9rem; margin-top:.4rem;"><i class="fa-solid fa-envelope"></i>
+        Mensagens Recebidas</div>
+    </div>
+    <div class="card" style="text-align:center; padding:2rem 1rem;">
+      <div style="font-size:2.8rem; font-weight:800; color:var(--primary-color); line-height:1;">100%</div>
+      <div style="color:var(--text-light); font-size:.9rem; margin-top:.4rem;"><i class="fa-solid fa-shield-halved"></i>
+        Dados Locais & Seguros</div>
+    </div>
+  </div>
+
+  <!-- Linha de Gráficos de Dados -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:3rem;">
+
+    <!-- Gráfico Circular: Estatísticas de Pontos por Tipo de Resíduo -->
+    <div class="card">
+      <h3 style="color:var(--primary-color); margin-bottom:1.25rem; font-size:1.1rem;">
+        <i class="fa-solid fa-chart-pie"></i> Pontos por Tipo de Resíduo
+      </h3>
+      <div style="position:relative; height:260px;">
+        <canvas id="chartTipo" style="max-height:260px;"></canvas>
+      </div>
+    </div>
+
+    <!-- Gráfico Circular: Composição Média do Lixo Eletrónico -->
+    <div class="card">
+      <h3 style="color:var(--primary-color); margin-bottom:1.25rem; font-size:1.1rem;">
+        <i class="fa-solid fa-chart-pie"></i> Composição Média do Lixo Eletrónico
+      </h3>
+      <div style="position:relative; height:260px;">
+        <canvas id="chartComposicao" style="max-height:260px;"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- Secções Informativas e Ambientais -->
+  <section class="content-section">
+    <h2><i class="fa-solid fa-recycle" style="font-size:1.2rem; margin-right:6px;"></i> O que é Lixo Eletrónico?</h2>
+    <p style="margin-bottom:1.5rem;">O lixo eletrónico (REEE) inclui aparelhos elétricos e eletrónicos que já não são
+      utilizados, como telemóveis, computadores e eletrodomésticos. É um dos resíduos que mais cresce a nível mundial.
+    </p>
+    <div class="icon-grid">
+      <div class="icon-card">
+        <i class="fa-solid fa-mobile-screen"
+          style="font-size:2.8rem; color:var(--primary-color); margin-bottom:.75rem; display:block;"></i>
+        <p style="font-weight:600;">Telemóveis</p>
+      </div>
+      <div class="icon-card">
+        <i class="fa-solid fa-laptop"
+          style="font-size:2.8rem; color:var(--primary-color); margin-bottom:.75rem; display:block;"></i>
+        <p style="font-weight:600;">Computadores</p>
+      </div>
+      <div class="icon-card">
+        <i class="fa-solid fa-battery-full"
+          style="font-size:2.8rem; color:var(--primary-color); margin-bottom:.75rem; display:block;"></i>
+        <p style="font-weight:600;">Pilhas</p>
+      </div>
+      <div class="icon-card">
+        <i class="fa-solid fa-tv"
+          style="font-size:2.8rem; color:var(--primary-color); margin-bottom:.75rem; display:block;"></i>
+        <p style="font-weight:600;">Televisões</p>
+      </div>
+      <div class="icon-card">
+        <i class="fa-solid fa-blender"
+          style="font-size:2.8rem; color:var(--primary-color); margin-bottom:.75rem; display:block;"></i>
+        <p style="font-weight:600;">Eletrodomésticos</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-section">
+    <h2><i class="fa-solid fa-triangle-exclamation" style="font-size:1.2rem; margin-right:6px;"></i> Por que isso
+      importa?</h2>
+    <p style="margin-bottom:1.5rem;">O descarte incorreto causa impactos ambientais graves e riscos à saúde pública.</p>
+    <div class="dashboard-grid">
+      <div class="card" style="border-left:4px solid #dc2626;">
+        <h3 style="color:#dc2626; margin-bottom:1rem;"><i class="fa-solid fa-skull-crossbones"></i> Impactos Negativos
+        </h3>
+        <ul style="list-style:none; display:flex; flex-direction:column; gap:.7rem;">
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-xmark"
+              style="color:#dc2626; margin-top:.2rem;"></i> Contaminação do solo e lençóis freáticos</li>
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-xmark"
+              style="color:#dc2626; margin-top:.2rem;"></i> Poluição do ar por queima inadequada</li>
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-xmark"
+              style="color:#dc2626; margin-top:.2rem;"></i> Exposição a metais pesados perigosos</li>
+        </ul>
+      </div>
+      <div class="card" style="border-left:4px solid #22c55e;">
+        <h3 style="color:#22c55e; margin-bottom:1rem;"><i class="fa-solid fa-leaf"></i> Benefícios da Reciclagem</h3>
+        <ul style="list-style:none; display:flex; flex-direction:column; gap:.7rem;">
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-check"
+              style="color:#22c55e; margin-top:.2rem;"></i> Redução drástica da poluição ambiental</li>
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-check"
+              style="color:#22c55e; margin-top:.2rem;"></i> Recuperação de materiais valiosos</li>
+          <li style="display:flex; gap:.6rem;"><i class="fa-solid fa-check"
+              style="color:#22c55e; margin-top:.2rem;"></i> Fomento à economia circular</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-section">
+    <h2><i class="fa-solid fa-chart-line" style="font-size:1.2rem; margin-right:6px;"></i> Estatísticas Europeias de REEE</h2>
+    <p style="margin-bottom:1.5rem;">Evolução de equipamentos elétricos e eletrónicos (EEE) colocados no mercado e o destino dos resíduos (REEE) recolhidos na UE (em milhões de toneladas).</p>
+    <div style="position:relative; height:320px; width:100%;">
+      <canvas id="chartEurostat"></canvas>
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-light); margin-top: 1rem; text-align: right;">Fonte: <a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Waste_statistics_-_electrical_and_electronic_equipment" target="_blank" style="color: var(--primary-color);">Eurostat</a></p>
+  </section>
+
+  <section class="content-section">
+    <h2><i class="fa-solid fa-link" style="font-size:1.2rem; margin-right:6px;"></i> Entidades Oficiais</h2>
+    <p style="margin-bottom:1.25rem;">Portugal tem metas ambiciosas para a recolha de equipamentos eletrónicos:</p>
+    <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+      <a href="https://apambiente.pt/" target="_blank" class="btn-outline" style="font-size:.9rem;">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> Agência Portuguesa do Ambiente (APA)
+      </a>
+      <a href="https://electrao.pt/" target="_blank" class="btn-outline" style="font-size:.9rem;">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> Electrão — Gestão de Resíduos
+      </a>
+    </div>
+  </section>
+
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── Paleta de Cores (Tons de Vinho) para os gráficos ─────────────────
+  const WINE_PALETTE = [
+    '#800020', '#a80030', '#c0183c', '#d94060', '#5c0018',
+    '#3d0010', '#780020', '#900028', '#eda0b0', '#fce8ed'
+  ];
+
+  function animateCounter(el, target, duration = 1200) {
+    let start = 0, step = Math.ceil(target / 60);
+    const interval = setInterval(() => {
+      start = Math.min(start + step, target);
+      el.textContent = start.toLocaleString('pt-PT');
+      if (start >= target) clearInterval(interval);
+    }, duration / 60);
+  }
+
+  // Detetar se o modo escuro está ativo para ajustar a cor dos textos dos gráficos
+  const isDarkOuter = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColorOuter = isDarkOuter ? '#f1f5f9' : '#1e293b';
+  const gridColorOuter = isDarkOuter ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)';
+
+  // ── Gráfico de Estatísticas do Eurostat ─────────────────────────────
+  const ctxEurostat = document.getElementById('chartEurostat');
+  if (ctxEurostat) {
+    new Chart(ctxEurostat, {
+      type: 'bar',
+      data: {
+        labels: ['2012', '2023'],
+        datasets: [
+          {
+            label: 'Colocado no Mercado',
+            data: [7.6, 14.4],
+            backgroundColor: isDarkOuter ? 'rgba(148, 163, 184, 0.8)' : 'rgba(30, 41, 59, 0.8)',
+            borderColor: isDarkOuter ? '#cbd5e1' : '#1e293b',
+            borderWidth: 1,
+            borderRadius: 4
+          },
+          {
+            label: 'Recolhido',
+            data: [3.0, 5.2],
+            backgroundColor: 'rgba(128, 0, 32, 0.8)',
+            borderColor: '#800020',
+            borderWidth: 1,
+            borderRadius: 4
+          },
+          {
+            label: 'Tratado',
+            data: [3.1, 5.2],
+            backgroundColor: 'rgba(168, 0, 48, 0.8)',
+            borderColor: '#a80030',
+            borderWidth: 1,
+            borderRadius: 4
+          },
+          {
+            label: 'Recuperado',
+            data: [2.6, 4.8],
+            backgroundColor: 'rgba(217, 64, 96, 0.8)',
+            borderColor: '#d94060',
+            borderWidth: 1,
+            borderRadius: 4
+          },
+          {
+            label: 'Reciclado / Reutilizado',
+            data: [2.4, 4.3],
+            backgroundColor: 'rgba(237, 160, 176, 0.8)',
+            borderColor: '#eda0b0',
+            borderWidth: 1,
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: textColorOuter, boxWidth: 12, font: { family: "'Outfit', sans-serif" } } },
+          tooltip: {
+            callbacks: {
+              label: function(context) { return context.dataset.label + ': ' + context.raw + 'M Toneladas'; }
+            }
+          }
+        },
+        scales: {
+          y: { 
+            beginAtZero: true, 
+            grid: { color: gridColorOuter }, 
+            ticks: { color: textColorOuter, font: { family: "'Outfit', sans-serif" } }
+          },
+          x: { 
+            grid: { display: false },
+            ticks: { color: textColorOuter, font: { family: "'Outfit', sans-serif" } }
+          }
+        },
+        animation: { duration: 1200 }
+      }
+    });
+  }
+
+  // ── Carregar Estatísticas em Tempo Real da API ────────────────────────
+  fetch('/api/stats')
+    .then(r => r.json())
+    .then(data => {
+      // Atualizar valores numéricos com os contadores animados
+      animateCounter(document.getElementById('cnt-pontos'), data.total_pontos);
+      animateCounter(document.getElementById('cnt-users'), data.total_users);
+      animateCounter(document.getElementById('cnt-msgs'), data.total_msgs);
+
+      // Detetar estado do modo escuro para as cores do painel interativo
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const textColor = isDark ? '#f1f5f9' : '#1e293b';
+      const gridColor = isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)';
+
+      Chart.defaults.color = textColor;
+      Chart.defaults.font.family = "'Outfit', sans-serif";
+
+      // ── Gráfico Circular: Pontos por Tipo de Resíduo ────────────────
+      if (data.por_tipo && data.por_tipo.length) {
+        new Chart(document.getElementById('chartTipo'), {
+          type: 'doughnut',
+          data: {
+            labels: data.por_tipo.map(d => d.tipo_recolha || 'Outros'),
+            datasets: [{
+              data: data.por_tipo.map(d => d.cnt),
+              backgroundColor: WINE_PALETTE,
+              borderColor: isDark ? '#1e293b' : '#fff',
+              borderWidth: 3,
+              hoverOffset: 12,
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'right', labels: { color: textColor, boxWidth: 14, padding: 12, font: { size: 11 } } }
+            },
+            animation: { animateScale: true, animateRotate: true, duration: 1000 }
+          }
+        });
+      } else {
+        document.getElementById('chartTipo').parentElement.innerHTML =
+          '<p style="color:var(--text-light); text-align:center; padding:2rem;">Ainda sem dados suficientes.</p>';
+      }
+
+      // ── Gráfico Circular: Composição Média do Lixo Eletrónico ─────
+      const ctxComp = document.getElementById('chartComposicao');
+      if (ctxComp) {
+        new Chart(ctxComp, {
+          type: 'pie',
+          data: {
+            labels: ['Metais (Ferro, Cobre, Ouro)', 'Plásticos', 'Ecrãs e Vidro', 'Outros'],
+            datasets: [{
+              data: [60, 15, 12, 13],
+              backgroundColor: ['#5c0018', '#800020', '#a80030', '#d94060'],
+              borderColor: isDark ? '#1e293b' : '#fff',
+              borderWidth: 2,
+              hoverOffset: 8,
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'right', labels: { color: textColor, boxWidth: 14, padding: 12, font: { size: 11 } } },
+              tooltip: { callbacks: { label: (ctx) => ' ' + ctx.label + ': ' + ctx.raw + '%' } }
+            },
+            animation: { animateScale: true, animateRotate: true, duration: 900 }
+          }
+        });
+      }
+
+    })
+    .catch(() => {
+      ['cnt-pontos', 'cnt-users', 'cnt-msgs'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '?';
+      });
+    });
+</script>
+{% endblock %}

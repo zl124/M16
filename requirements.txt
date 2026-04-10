@@ -1,0 +1,7 @@
+Flask
+Flask-Login
+Werkzeug
+pyproj
+cryptography
+itsdangerous
+pyngrok

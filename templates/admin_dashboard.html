@@ -1,0 +1,575 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h2><i class="fa-solid fa-user-shield"></i> Painel do Administrador</h2>
+        <p>Bem-vindo, {{ current_user.name }}</p>
+    </div>
+
+    <!-- Tabs de Navegação -->
+    <div style="display:flex; gap:10px; margin-bottom:1.5rem; flex-wrap:wrap;">
+        <button class="tab-btn active" onclick="showTab('tab-pontos')" id="btn-pontos">
+            <i class="fa-solid fa-map-location-dot"></i> Pontos de Recolha
+        </button>
+        <button class="tab-btn" onclick="showTab('tab-utilizadores')" id="btn-utilizadores">
+            <i class="fa-solid fa-users"></i> Utilizadores
+        </button>
+        <button class="tab-btn" onclick="showTab('tab-mensagens')" id="btn-mensagens">
+            <i class="fa-solid fa-envelope"></i> Mensagens
+            {% if nao_lidas > 0 %}
+            <span class="badge-notification"
+                style="background:#dc2626; color:white; font-size:0.7rem; padding:2px 7px; border-radius:999px; margin-left:4px;">{{
+                nao_lidas }}</span>
+            {% endif %}
+        </button>
+        <button class="tab-btn" onclick="showTab('tab-logs')" id="btn-logs">
+            <i class="fa-solid fa-list-ul"></i> Logs
+        </button>
+        <button class="tab-btn" onclick="showTab('tab-mapa-acessos')" id="btn-mapa-acessos">
+            <i class="fa-solid fa-globe"></i> Mapa de Acessos
+        </button>
+    </div>
+
+    <!-- TAB: Logs -->
+    <div id="tab-logs" class="tab-content" style="display:none;">
+        <div class="card">
+            <h3><i class="fa-solid fa-list-ul"></i> Registos de Atividade Detalhados</h3>
+            <p style="margin-bottom:1.5rem; color:var(--text-light);">Monitorização em tempo real das ações realizadas no sistema.</p>
+            
+            <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                <table style="font-size: 0.85rem;">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Utilizador</th>
+                            <th>IP</th>
+                            <th>Ação/Rota</th>
+                            <th>Detalhes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td><small>{{ log.created_at }}</small></td>
+                            <td><span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color);">{{ log.utilizador }}</span></td>
+                            <td><small style="color: var(--text-light);">{{ log.ip }}</small></td>
+                            <td><code>{{ log.acao }}</code></td>
+                            <td><small title="{{ log.detalhes }}">{{ log.detalhes[:50] }}{% if log.detalhes|length > 50 %}...{% endif %}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Mapa de Acessos -->
+    <div id="tab-mapa-acessos" class="tab-content" style="display:none;">
+        <div class="card">
+            <h3><i class="fa-solid fa-earth-americas"></i> Origem dos Acessos</h3>
+            <p style="margin-bottom:1.5rem; color:var(--text-light);">Visualização geográfica das visitas baseadas em endereços IP (ignora tráfego local 127.0.0.1).</p>
+            
+            <div id="access-map" style="width: 100%; height: 500px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); z-index: 1;"></div>
+        </div>
+    </div>
+
+    <!-- TAB: Pontos -->
+    <div id="tab-pontos" class="tab-content">
+        <div class="dashboard-grid">
+            <!-- Coluna da Esquerda: Adicionar Ponto -->
+            <div class="card">
+                <h3><i class="fa-solid fa-plus-circle"></i> Adicionar Novo Ponto</h3>
+                <p style="margin-bottom: 15px; color: var(--text-light); font-size: 0.9rem;">
+                    Clique no mapa para preencher a localização automaticamente.
+                </p>
+
+                <div id="map-preview"></div>
+
+                <form action="{{ url_for('add_ponto') }}" method="post" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Nome do Local</label>
+                        <input type="text" name="nome" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Morada</label>
+                        <textarea name="morada" rows="2" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Freguesia</label>
+                        <input type="text" name="freguesia" placeholder="Ex: Avenidas Novas">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Horário</label>
+                        <input type="text" name="horario" placeholder="Ex: Seg-Sex 9h-18h">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de Recolha</label>
+                        <input type="text" name="tipo_recolha" placeholder="Ex: Eletrodomésticos, Pilhas...">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Link Oficial</label>
+                        <input type="text" name="link" placeholder="https://...">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Imagem</label>
+                        <input type="file" name="imagem" accept="image/*">
+                    </div>
+
+                    <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label>Latitude</label>
+                            <input type="number" step="any" id="latitude" name="latitude" readonly required>
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude</label>
+                            <input type="number" step="any" id="longitude" name="longitude" readonly required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="full-width-btn">Adicionar Ponto</button>
+                </form>
+            </div>
+
+            <!-- Coluna da Direita: Gerir Pontos -->
+            <div class="card">
+                <h3><i class="fa-solid fa-list-check"></i> Gerir Pontos Existentes</h3>
+                <div class="search-box" style="margin-bottom: 20px;">
+                    <input type="text" id="adminSearch" placeholder="Pesquisar por nome ou morada..."
+                        style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: var(--radius-md);">
+                </div>
+                <p style="margin-bottom: 15px; color: var(--text-light);">Lista de todos os pontos cadastrados.</p>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Tipo</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ponto in pontos %}
+                            <tr>
+                                <td>
+                                    <strong>{{ ponto.nome }}</strong><br>
+                                    <small style="color: var(--text-light)">{{ ponto.freguesia }}</small>
+                                </td>
+                                <td>{{ ponto.tipo_recolha }}</td>
+                                <td>
+                                    <div style="display: flex; gap: 5px;">
+                                        <a href="{{ url_for('edit_ponto', ponto_id=ponto.id) }}" class="btn-outline"
+                                            style="padding: 5px 10px; font-size: 0.8rem;">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </a>
+                                        <a href="{{ url_for('delete_ponto', ponto_id=ponto.id) }}" class="btn-outline"
+                                            style="color: #dc2626; border-color: #dc2626; padding: 5px 10px; font-size: 0.8rem;"
+                                            onclick="return confirm('Tem certeza que deseja remover este ponto?');">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3">Nenhum ponto cadastrado ainda.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Mensagens -->
+    <div id="tab-mensagens" class="tab-content" style="display:none;" id="mensagens">
+        <div class="card">
+            <h3><i class="fa-solid fa-inbox"></i> Mensagens de Contacto
+                {% if nao_lidas > 0 %}
+                <span
+                    style="background:#dc2626; color:white; font-size:0.75rem; padding:3px 10px; border-radius:999px; margin-left:8px; vertical-align:middle;">{{
+                    nao_lidas }} não lida{{ 's' if nao_lidas > 1 else '' }}</span>
+                {% endif %}
+            </h3>
+
+            {% if mensagens %}
+            <div style="display:flex; flex-direction:column; gap:1rem; margin-top:1.5rem;">
+                {% for msg in mensagens %}
+                <div
+                    style="border:1px solid {% if msg.lida %}rgba(0,0,0,0.1){% else %}var(--primary-color){% endif %}; border-radius:var(--radius-md); padding:1.2rem; background: {% if msg.lida %}transparent{% else %}rgba(var(--primary-rgb,90,85,100),0.05){% endif %}; position:relative;">
+                    {% if not msg.lida %}
+                    <span
+                        style="position:absolute; top:12px; right:12px; background:var(--primary-color); color:white; font-size:0.7rem; padding:2px 8px; border-radius:999px;">Nova</span>
+                    {% endif %}
+                    <div style="display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:0.8rem;">
+                        <div>
+                            <strong>{{ msg.nome }}</strong>
+                            <br><small style="color:var(--text-light);">{{ msg.email }}</small>
+                        </div>
+                        <div style="margin-left:auto; text-align:right;">
+                            <small style="color:var(--text-light);">{{ msg.created_at }}</small>
+                        </div>
+                    </div>
+                    <p style="font-weight:600; margin-bottom:0.5rem;"><i class="fa-solid fa-tag"
+                            style="color:var(--primary-color);"></i> {{ msg.assunto }}</p>
+                    <p style="color:var(--text-light); white-space:pre-wrap;">{{ msg.mensagem }}</p>
+                    {% if not msg.lida %}
+                    <form action="{{ url_for('marcar_mensagem_lida', msg_id=msg.id) }}" method="POST"
+                        style="margin-top:0.8rem;">
+                        <button type="submit" class="btn-outline" style="font-size:0.8rem; padding:5px 14px;">
+                            <i class="fa-solid fa-check"></i> Marcar como lida
+                        </button>
+                    </form>
+                    {% else %}
+                    <p style="margin-top:0.5rem; color:#22c55e; font-size:0.8rem;"><i
+                            class="fa-solid fa-check-double"></i> Lida</p>
+                    {% endif %}
+                    <hr style="margin-top:0.8rem; border-color: rgba(0,0,0,0.1);">
+                    <a href="mailto:{{ msg.email }}?subject=Re: {{ msg.assunto | urlencode }}" class="btn-primary"
+                        style="font-size:0.8rem; padding:6px 16px; display:inline-block; margin-top:0.3rem;">
+                        <i class="fa-solid fa-reply"></i> Responder por Email
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="text-align:center; padding:3rem 0; color:var(--text-light);">
+                <i class="fa-solid fa-inbox" style="font-size:3rem; margin-bottom:1rem; display:block;"></i>
+                <p>Ainda não há mensagens de contacto.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- TAB: Utilizadores -->
+    <div id="tab-utilizadores" class="tab-content" style="display:none;">
+        <div class="card">
+            <h3><i class="fa-solid fa-users"></i> Gestão de Utilizadores</h3>
+            <p style="margin-bottom: 1.5rem; color: var(--text-light);">Administre os utilizadores registados e a sua validação.</p>
+            
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Registado em</th>
+                            <th>Nome / Email</th>
+                            <th>Impacto / Medalha</th>
+                            <th>Estado</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td><small>{{ user.created_at[:10] if user.created_at else '' }}</small></td>
+                            <td>
+                                <strong>{{ user.name }}</strong><br>
+                                <small style="color:var(--text-light);">{{ user.email }}</small>
+                            </td>
+                            <td>
+                                <div style="font-size: 0.85rem;">
+                                    <span title="Pontos" style="margin-right:8px;"><i class="fa-solid fa-bolt" style="color:var(--accent-color);"></i> {{ user.pontos }}</span>
+                                    <span title="Kg Reciclado" style="margin-right:8px;"><i class="fa-solid fa-recycle" style="color:#10b981;"></i> {{ "%.1f"|format(user.reciclado_kg) }}kg</span>
+                                </div>
+                                <div style="margin-top:4px;">
+                                    {% if user.medalha == 'Eco-Guerreiro' %}
+                                    <span class="badge" style="background:#fef3c7; color:#92400e; font-size:0.7rem;"><i class="fa-solid fa-earth-europe"></i> Eco-Guerreiro</span>
+                                    {% elif user.medalha == 'Mestre das Pilhas' %}
+                                    <span class="badge" style="background:#dbeafe; color:#1e40af; font-size:0.7rem;"><i class="fa-solid fa-battery-full"></i> Mestre das Pilhas</span>
+                                    {% elif user.medalha == 'Expert em Hardware' %}
+                                    <span class="badge" style="background:#f3e8ff; color:#6b21a8; font-size:0.7rem;"><i class="fa-solid fa-microchip"></i> Expert em Hardware</span>
+                                    {% else %}
+                                    <span class="badge" style="background:#f0fdf4; color:#166534; font-size:0.7rem;"><i class="fa-solid fa-seedling"></i> Recruta Verde</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if user.is_verified %}
+                                <span style="color:#22c55e; font-weight:600;"><i class="fa-solid fa-check-circle"></i> Verificado</span>
+                                {% else %}
+                                <span style="color:#f59e0b; font-weight:600;"><i class="fa-solid fa-clock"></i> Pendente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                                    <button class="btn-outline" style="padding:4px 8px; font-size:0.8rem;" title="Editar Impacto/Medalha"
+                                            onclick="openImpactModal({{ user.id }}, '{{ user.name }}', {{ user.pontos }}, {{ user.reciclado_kg }}, {{ user.co2_poupado }}, '{{ user.medalha|default('Recruta Verde', true) }}')">
+                                        <i class="fa-solid fa-chart-line"></i>
+                                    </button>
+                                    {% if not user.is_verified %}
+                                    <form action="{{ url_for('admin_verify_user', user_id=user.id) }}" method="POST" style="display:inline;">
+                                        <button type="submit" class="btn-outline" style="font-size:0.75rem; padding:4px 8px; border-color:#10b981; color:#10b981;">
+                                            Validar
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Editar Impacto -->
+    <div id="impactModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-pen-to-square"></i> Editar Impacto de <span id="modalUserName"></span></h3>
+                <button class="close-modal" onclick="closeImpactModal()">&times;</button>
+            </div>
+            <form id="editImpactForm" method="POST">
+                <div class="form-group">
+                    <label><i class="fa-solid fa-medal"></i> Medalha Atual</label>
+                    <select name="medalha" id="modalMedalha" required>
+                        <option value="Recruta Verde">Recruta Verde</option>
+                        <option value="Eco-Guerreiro">Eco-Guerreiro</option>
+                        <option value="Mestre das Pilhas">Mestre das Pilhas</option>
+                        <option value="Expert em Hardware">Expert em Hardware</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-bolt"></i> Eco-Pontos</label>
+                    <input type="number" name="pontos" id="modalPontos" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-recycle"></i> E-Lixo Reciclado (kg)</label>
+                    <input type="number" step="0.1" name="reciclado_kg" id="modalKg" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-cloud-arrow-down"></i> CO2 Poupado (kg)</label>
+                    <input type="number" step="0.1" name="co2_poupado" id="modalCo2" required>
+                </div>
+                <div style="margin-top:1.5rem;">
+                    <button type="submit" class="full-width-btn">Guardar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let accessMapInitialized = false;
+
+    // Tab switching
+    function showTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).style.display = 'block';
+        document.getElementById('btn-' + tabId.replace('tab-', '')).classList.add('active');
+        
+        if (tabId === 'tab-mapa-acessos' && !accessMapInitialized) {
+            accessMapInitialized = true;
+            setTimeout(initAccessMap, 100);
+        }
+    }
+
+    // Se URL tiver #hash, abre essa tab
+    if (window.location.hash === '#mensagens') {
+        showTab('tab-mensagens');
+    } else if (window.location.hash === '#utilizadores') {
+        showTab('tab-utilizadores');
+    }
+
+    // Inicializa o mapa de inclusão
+    const map = L.map('map-preview').setView([38.7223, -9.1393], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let marcadorUsuario = null;
+
+    // ── Ícone SVG Wine Red ──────────────────────────────────
+    function criarIcone(cor) {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 41" width="26" height="41">
+            <defs>
+                <linearGradient id="gAdmin" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="${cor}" stop-opacity="1"/>
+                    <stop offset="100%" stop-color="#3d0010" stop-opacity="1"/>
+                </linearGradient>
+            </defs>
+            <path fill="url(#gAdmin)" stroke="#3d0010" stroke-width="1"
+                d="M13 0C5.8 0 0 5.8 0 13c0 9.8 13 28 13 28s13-18.2 13-28C26 5.8 20.2 0 13 0z"/>
+            <circle cx="13" cy="13" r="5.5" fill="rgba(255,255,255,0.9)"/>
+        </svg>`;
+        return L.divIcon({ html: svg, className: '', iconSize: [26, 41], iconAnchor: [13, 41], popupAnchor: [0, -38] });
+    }
+    const redIcon = criarIcone('#a80030');
+
+    map.on('click', function (e) {
+        const { lat, lng } = e.latlng;
+        if (marcadorUsuario) map.removeLayer(marcadorUsuario);
+
+        marcadorUsuario = L.marker([lat, lng], { draggable: true, icon: redIcon }).addTo(map);
+
+        document.getElementById('latitude').value = lat.toFixed(6);
+        document.getElementById('longitude').value = lng.toFixed(6);
+
+        marcadorUsuario.on('move', e => {
+            document.getElementById('latitude').value = e.latlng.lat.toFixed(6);
+            document.getElementById('longitude').value = e.latlng.lng.toFixed(6);
+        });
+    });
+
+    // JS para Pesquisa em Tempo Real
+    document.getElementById('adminSearch').addEventListener('keyup', function () {
+        const term = this.value.toLowerCase();
+        const rows = document.querySelectorAll('tbody tr');
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(term) ? '' : 'none';
+        });
+    });
+
+    // ── Mapa de Acessos ──────────────────────────────────────
+    function initAccessMap() {
+        const accMap = L.map('access-map').setView([38.7223, -9.1393], 2); // Vista global
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(accMap);
+        
+        const markers = L.markerClusterGroup({
+            iconCreateFunction: function(cluster) {
+                return L.divIcon({ 
+                    html: '<div style="background:var(--primary-color);color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-weight:bold;box-shadow:var(--shadow-md);">' + cluster.getChildCount() + '</div>', 
+                    className: 'my-cluster-icon', 
+                    iconSize: [30, 30] 
+                });
+            }
+        });
+        
+        fetch('/admin/api/locations')
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) return;
+                
+                data.forEach(loc => {
+                    const marker = L.marker([loc.lat, loc.lon], { icon: redIcon });
+                    marker.bindPopup(`
+                        <div style="font-family:'Outfit', sans-serif;">
+                            <strong style="color:var(--primary-color);">IP:</strong> ${loc.ip}<br>
+                            <strong>Local:</strong> ${loc.city}, ${loc.country}<br>
+                            <strong>Acessos:</strong> ${loc.acessos}
+                        </div>
+                    `);
+                    markers.addLayer(marker);
+                });
+                
+                accMap.addLayer(markers);
+                if (data.length > 0) {
+                    accMap.fitBounds(markers.getBounds(), { padding: [50, 50] });
+                }
+            })
+            .catch(err => console.error("Erro a carregar mapa de acessos:", err));
+    }
+
+    // Modal de Impacto
+    function openImpactModal(userId, userName, pontos, kg, co2, medalha) {
+        document.getElementById('modalUserName').innerText = userName;
+        document.getElementById('modalPontos').value = pontos;
+        document.getElementById('modalKg').value = kg;
+        document.getElementById('modalCo2').value = co2;
+        if(document.getElementById('modalMedalha')) {
+            document.getElementById('modalMedalha').value = medalha;
+        }
+        document.getElementById('editImpactForm').action = "/admin/edit_impact/" + userId;
+        document.getElementById('impactModal').style.display = 'flex';
+    }
+
+    function closeImpactModal() {
+        document.getElementById('impactModal').style.display = 'none';
+    }
+
+    // Fechar modal ao clicar fora
+    window.onclick = function(event) {
+        let modal = document.getElementById('impactModal');
+        if (event.target == modal) {
+            closeImpactModal();
+        }
+    }
+</script>
+
+<style>
+    .tab-btn {
+        padding: 10px 20px;
+        border: 2px solid var(--primary-color);
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--primary-color);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .tab-btn.active,
+    .tab-btn:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    /* Estilos do Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        animation: fadeIn 0.2s ease;
+    }
+    .modal-content {
+        background: var(--card-bg);
+        padding: 2rem;
+        border-radius: var(--radius-xl);
+        width: calc(100% - 2rem);
+        max-width: 450px;
+        box-shadow: var(--shadow-premium);
+        position: relative;
+        animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .modal-header h3 { font-size: 1.2rem; color: var(--primary-color); margin: 0; }
+    .close-modal {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--text-light);
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+</style>
+{% endblock %}

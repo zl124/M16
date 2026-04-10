@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    .impact-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .impact-card {
+        padding: 2rem;
+        text-align: center;
+        border-radius: var(--radius-xl);
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        box-shadow: var(--shadow-md);
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .impact-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: var(--primary-gradient);
+    }
+
+    .impact-card:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--shadow-premium);
+        border-color: var(--primary-color);
+    }
+
+    .impact-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: inline-block;
+    }
+
+    .impact-value {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: var(--text-dark);
+        margin-bottom: 0.2rem;
+        display: block;
+    }
+
+    .impact-label {
+        font-size: 0.9rem;
+        color: var(--text-light);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 800;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--text-dark);
+    }
+
+    .medals-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .medal-card {
+        background: var(--card-bg);
+        padding: 1.5rem 1rem;
+        border-radius: var(--radius-lg);
+        text-align: center;
+        border: 1px solid var(--card-border);
+        transition: var(--transition);
+        filter: grayscale(1);
+        opacity: 0.7;
+    }
+
+    .medal-card.unlocked {
+        filter: grayscale(0);
+        opacity: 1;
+        border-color: var(--accent-color);
+        background: linear-gradient(to bottom, var(--white), var(--wine-100));
+        box-shadow: var(--shadow-sm);
+    }
+
+    .medal-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.75rem;
+        color: var(--accent-color);
+    }
+
+    .medal-name {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        display: block;
+    }
+
+    .eco-tip-card {
+        background: var(--wine-900);
+        color: white;
+        padding: 2rem;
+        border-radius: var(--radius-xl);
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 3rem;
+        box-shadow: var(--shadow-wine);
+    }
+
+    .eco-tip-card::before {
+        content: '\f06c';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        position: absolute;
+        right: -20px;
+        bottom: -20px;
+        font-size: 8rem;
+        opacity: 0.1;
+        transform: rotate(-15deg);
+    }
+
+    .tip-tag {
+        background: var(--accent-color);
+        color: var(--wine-900);
+        padding: 0.3rem 0.8rem;
+        border-radius: 99px;
+        font-weight: 800;
+        font-size: 0.75rem;
+        display: inline-block;
+        margin-bottom: 1rem;
+    }
+
+    .quick-actions {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 600px) {
+        .impact-grid { grid-template-columns: 1fr; }
+        .medals-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <div>
+            <h2><i class="fa-solid fa-leaf"></i> Painel do Utilizador</h2>
+            <p>Bem-vindo de volta, <strong>{{ current_user.name }}</strong>! Estás a fazer a diferença.</p>
+        </div>
+        <div class="quick-actions">
+            <a href="{{ url_for('index') }}" class="btn-primary">
+                <i class="fa-solid fa-map-location-dot"></i> Explorar Mapa
+            </a>
+        </div>
+    </div>
+
+    <!-- Impact Stats Section -->
+    <h3 class="section-title"><i class="fa-solid fa-chart-line"></i> O Teu Impacto Ambiental</h3>
+    <div class="impact-grid">
+        <div class="impact-card">
+            <i class="fa-solid fa-bolt impact-icon"></i>
+            <span class="impact-value">{{ current_user.pontos }}</span>
+            <span class="impact-label">Eco-Pontos</span>
+        </div>
+        <div class="impact-card">
+            <i class="fa-solid fa-recycle impact-icon"></i>
+            <span class="impact-value">{{ "%.1f"|format(current_user.reciclado_kg) }} kg</span>
+            <span class="impact-label">E-Lixo Reciclado</span>
+        </div>
+        <div class="impact-card">
+            <i class="fa-solid fa-cloud-arrow-down impact-icon"></i>
+            <span class="impact-value">{{ "%.1f"|format(current_user.co2_poupado) }} kg</span>
+            <span class="impact-label">CO2 Poupado</span>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Medals Section -->
+        <div class="left-col">
+            <h3 class="section-title"><i class="fa-solid fa-medal"></i> As Tuas Conquistas</h3>
+            <div class="medals-grid">
+                <div class="medal-card {% if current_user.medalha in ['Recruta Verde', 'Eco-Guerreiro', 'Mestre das Pilhas', 'Expert em Hardware'] %}unlocked{% endif %}">
+                    <i class="fa-solid fa-seedling medal-icon"></i>
+                    <span class="medal-name">Recruta Verde</span>
+                </div>
+                <div class="medal-card {% if current_user.medalha in ['Eco-Guerreiro', 'Mestre das Pilhas', 'Expert em Hardware'] %}unlocked{% endif %}">
+                    <i class="fa-solid fa-earth-europe medal-icon"></i>
+                    <span class="medal-name">Eco-Guerreiro</span>
+                </div>
+                <div class="medal-card {% if current_user.medalha in ['Mestre das Pilhas', 'Expert em Hardware'] %}unlocked{% endif %}">
+                    <i class="fa-solid fa-battery-full medal-icon"></i>
+                    <span class="medal-name">Mestre das Pilhas</span>
+                </div>
+                <div class="medal-card {% if current_user.medalha == 'Expert em Hardware' %}unlocked{% endif %}">
+                    <i class="fa-solid fa-microchip medal-icon"></i>
+                    <span class="medal-name">Expert em Hardware</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tips Section -->
+        <div class="right-col">
+            <h3 class="section-title"><i class="fa-solid fa-lightbulb"></i> Sabias que?</h3>
+            <div class="eco-tip-card">
+                <span class="tip-tag">Dica de Sustentabilidade</span>
+                <h4 style="margin-bottom: 0.5rem; font-size: 1.2rem;">Reciclar um telemóvel antigo...</h4>
+                <p style="opacity: 0.9; font-size: 0.95rem;">
+                    ...permite recuperar metais preciosos como ouro, prata e cobre, reduzindo a necessidade de mineração que destrói ecossistemas naturais. 
+                    Cada componente conta!
+                </p>
+            </div>
+            
+            <div class="card" style="padding: 1.5rem;">
+                <h4 style="margin-bottom: 1rem;"><i class="fa-solid fa-circle-question" style="color: var(--primary-color);"></i> Próximos Passos?</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="margin-bottom: 0.8rem; font-size: 0.9rem; display: flex; gap: 10px; align-items: flex-start;">
+                        <i class="fa-solid fa-check-circle" style="color: #10b981; margin-top: 3px;"></i>
+                        Encontra o ponto de recolha mais próximo da tua morada no mapa.
+                    </li>
+                    <li style="margin-bottom: 0.8rem; font-size: 0.9rem; display: flex; gap: 10px; align-items: flex-start;">
+                        <i class="fa-solid fa-circle" style="color: var(--card-border); margin-top: 3px;"></i>
+                        Leva os teus dispositivos antigos a um ecocentro.
+                    </li>
+                    <li style="margin-bottom: 0.8rem; font-size: 0.9rem; display: flex; gap: 10px; align-items: flex-start;">
+                        <i class="fa-solid fa-circle" style="color: var(--card-border); margin-top: 3px;"></i>
+                        Ganharás mais Eco-Pontos por cada contribuição registada!
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: 'Outfit', sans-serif; color: #333; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 12px; }
+        .header { background: #800020; color: white; padding: 20px; text-align: center; border-radius: 12px 12px 0 0; }
+        .content { padding: 30px; }
+        .btn { display: inline-block; background: #800020; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 20px; }
+        .footer { text-align: center; font-size: 12px; color: #777; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Novidade no Mapa!</h1>
+        </div>
+        <div class="content">
+            <p>Olá,</p>
+            <p>Informamos que foi adicionado um novo ponto de coleta na aplicação:</p>
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #800020;">
+                <h3 style="margin-top: 0; color: #800020;">{{ nome_ponto }}</h3>
+                <p><strong>Tipo:</strong> {{ tipo }}</p>
+                <p><strong>Morada:</strong> {{ morada }}</p>
+            </div>
+            <p style="text-align: center;">
+                <a href="{{ url_for('index', _external=True) }}" class="btn" style="color: white !important;">Ver no Mapa</a>
+            </p>
+        </div>
+        <div class="footer">
+            <p>Recebeu esta notificação porque está registado no E-Lixo Zero Lisboa.</p>
+        </div>
+    </div>
+</body>
+</html>

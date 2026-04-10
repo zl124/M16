@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: 'Outfit', sans-serif; color: #333; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 12px; }
+        .header { background: #800020; color: white; padding: 20px; text-align: center; border-radius: 12px 12px 0 0; }
+        .content { padding: 30px; }
+        .btn { display: inline-block; background: #800020; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 20px; }
+        .footer { text-align: center; font-size: 12px; color: #777; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>E-Lixo Zero Lisboa</h1>
+        </div>
+        <div class="content">
+            <p>Olá {{ name }},</p>
+            <p>Obrigado por se registar na nossa plataforma. Para ativar a sua conta e começar a ajudar o ambiente, clique no botão abaixo:</p>
+            <p style="text-align: center;">
+                <a href="{{ verify_url }}" class="btn" style="color: white !important;">Confirmar Email</a>
+            </p>
+            <p>Se o botão não funcionar, copie e cole o seguinte link no seu navegador:</p>
+            <p><small>{{ verify_url }}</small></p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 E-Lixo Zero Lisboa. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>
