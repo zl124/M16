@@ -1,7 +1,0 @@
-Flask
-Flask-Login
-Werkzeug
-gunicorn
-pyproj
-resend
-cryptography
